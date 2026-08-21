@@ -147,6 +147,19 @@ function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.D
   });
 }
 
+/** The far end of a delivery leg -- the zone this load is feeding. */
+function dropIcon(): L.DivIcon {
+  return L.divIcon({
+    className: "ping-icon",
+    html: `<div style="
+        width:12px;height:12px;border-radius:50%;
+        background:var(--mint-ink);border:2px solid var(--ink-on-solid);
+        box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
+    iconSize: [12, 12],
+    iconAnchor: [6, 6],
+  });
+}
+
 /** A stop already on the route: numbered, mint, joined by the run line. */
 function stopIcon(n: number): L.DivIcon {
   return L.divIcon({
@@ -292,6 +305,25 @@ export default function PickupMap({
     [stops],
   );
 
+  // The delivery leg: where each load is actually going. Drawn from the
+  // kitchen to the middle of its zone, because "2 stops" and a dashed line
+  // between them never showed the half of the trip that matters.
+  const legs = useMemo(
+    () =>
+      stops
+        .map((o) => {
+          const z = ZONES.zones.find((x) => x.id === o.zone_id);
+          if (!z) return null;
+          return {
+            id: o.id,
+            from: [o.lat as number, o.lng as number] as [number, number],
+            to: [z.centroid[1], z.centroid[0]] as [number, number],
+          };
+        })
+        .filter(Boolean) as { id: string; from: [number, number]; to: [number, number] }[],
+    [stops],
+  );
+
   const focus = pins.find((o) => o.id === selectedId) ?? null;
 
   const allPoints = useMemo(
@@ -318,14 +350,31 @@ export default function PickupMap({
             against the pickup pings, which are what this screen is for. */}
         <ZoneLayer stats={stats} />
 
-        {/* The run so far: a dashed line through the stops in driving order. */}
+        {/* Collection order: dashed, between the kitchens. */}
         {line.length > 1 && (
           <Polyline
             positions={line}
             interactive={false}
-            pathOptions={{ color: "#2FB37D", weight: 3, opacity: 0.9, dashArray: "6 6" }}
+            pathOptions={{ color: "#2FB37D", weight: 2, opacity: 0.75, dashArray: "5 6" }}
           />
         )}
+
+        {/* Delivery legs: solid, from each kitchen to the zone it feeds.
+            Solid against the dashed collection line so the two read as
+            different halves of the same trip rather than one tangle. */}
+        {legs.map((leg) => (
+          <Polyline
+            key={`leg-${leg.id}`}
+            positions={[leg.from, leg.to]}
+            interactive={false}
+            pathOptions={{ color: "#5FD3A2", weight: 3, opacity: 0.95 }}
+          />
+        ))}
+
+        {/* Where each leg lands. */}
+        {legs.map((leg) => (
+          <Marker key={`drop-${leg.id}`} position={leg.to} icon={dropIcon()} interactive={false} />
+        ))}
 
         {stops.map((o, i) => (
           <Marker

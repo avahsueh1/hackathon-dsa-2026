@@ -226,11 +226,20 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
             />
             <div className="routestops">{stops.map(renderStop)}</div>
             <div className="routestops routestops-tail">
-              {!isActive && (
-                <Button variant="quiet" size="md" fullWidth onClick={() => setActive(id)}>
-                  Add new stops to {label}
-                </Button>
-              )}
+              {/* Always here, not only on the routes you are not adding to.
+                  "Add stops" is the obvious next thing to do with a route and
+                  it should not depend on knowing which one is active. */}
+              <Button
+                variant="secondary"
+                size="md"
+                fullWidth
+                onClick={() => {
+                  if (id !== "loose") setActive(id);
+                  onFindWork();
+                }}
+              >
+                + Add stops to {label}
+              </Button>
 
               {confirming === id ? (
                 <div className="stopactions">
