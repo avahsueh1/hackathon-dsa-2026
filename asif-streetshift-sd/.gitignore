@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.venv/
+.venv312/
+__pycache__/
+.pytest_cache/
+*.pyc
+node_modules/
+dist/
+tmp/processed/

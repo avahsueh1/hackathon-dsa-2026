@@ -1,0 +1,80 @@
+{
+  "sourceSnapshot": "2026-08-20",
+  "policyWindow": {
+    "start": "2023-07-31",
+    "end": "2024-01-25"
+  },
+  "citywideRecordCount": 29,
+  "citywideUniqueCases": 29,
+  "validCoordinateCount": 29,
+  "within500mOfPanelCount": 7,
+  "nearbyClusterCount": 6,
+  "clusters": [
+    {
+      "id": "ordinance-cluster-01",
+      "latitude": 32.723,
+      "longitude": -117.141,
+      "recordCount": 2,
+      "firstDate": "2023-08-08",
+      "lastDate": "2023-12-24",
+      "subsection": "63.0404(c)",
+      "neighborhood": "Balboa Park"
+    },
+    {
+      "id": "ordinance-cluster-02",
+      "latitude": 32.720,
+      "longitude": -117.140,
+      "recordCount": 1,
+      "firstDate": "2023-08-09",
+      "lastDate": "2023-08-09",
+      "subsection": "63.0404(c)",
+      "neighborhood": "Golden Hill"
+    },
+    {
+      "id": "ordinance-cluster-03",
+      "latitude": 32.718,
+      "longitude": -117.149,
+      "recordCount": 1,
+      "firstDate": "2023-08-21",
+      "lastDate": "2023-08-21",
+      "subsection": "63.0404(c)",
+      "neighborhood": "East Village"
+    },
+    {
+      "id": "ordinance-cluster-04",
+      "latitude": 32.725,
+      "longitude": -117.158,
+      "recordCount": 1,
+      "firstDate": "2023-11-03",
+      "lastDate": "2023-11-03",
+      "subsection": "63.0404(c)",
+      "neighborhood": "Balboa Park"
+    },
+    {
+      "id": "ordinance-cluster-05",
+      "latitude": 32.702,
+      "longitude": -117.144,
+      "recordCount": 1,
+      "firstDate": "2023-12-31",
+      "lastDate": "2023-12-31",
+      "subsection": "63.0404(a)",
+      "neighborhood": "Barrio Logan"
+    },
+    {
+      "id": "ordinance-cluster-06",
+      "latitude": 32.726,
+      "longitude": -117.158,
+      "recordCount": 1,
+      "firstDate": "2024-01-06",
+      "lastDate": "2024-01-06",
+      "subsection": "63.0404(c)",
+      "neighborhood": "Balboa Park"
+    }
+  ],
+  "derivation": {
+    "source": "City of San Diego Police NIBRS Crime Offenses",
+    "filter": "code_section starts with 63.0404 and occured_on is 2023-07-31 through 2024-01-25 inclusive",
+    "privacy": "Coordinates rounded to three decimals and duplicate rounded locations clustered; case identifiers and hundred-block addresses omitted.",
+    "scope": "Only clusters within 500 meters of the organizer's fixed 261-block panel are included in the map layer."
+  }
+}
