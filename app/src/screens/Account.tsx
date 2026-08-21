@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import type { Restaurant } from "../types";
 import { register, signOut, useAccount } from "../lib/account";
 import { clearRole, useRole } from "../lib/role";
+import { clearDemoData, loadDemoData, useBoard } from "../lib/store";
 import { hasBackend } from "../lib/supabase";
 import Button from "../components/Button";
 
@@ -18,6 +19,32 @@ const EMPTY: Restaurant = {
   typical_meals: null,
   surplus_days: [],
 };
+
+function DemoCard({ name }: { name: string | null }) {
+  const { pickups } = useBoard();
+  const samples = pickups.filter((p) => p.demo).length;
+
+  return (
+    <div className="zcard">
+      <span className="ss-label reg-eyebrow">Demo data</span>
+      <span className="zcard-sub">
+        {samples > 0
+          ? `${samples} sample pickups and drops are on this device, marked "Sample". They never reach the shared board.`
+          : "No samples on this device. Load a full evening to demo with."}
+      </span>
+      <div className="stopactions">
+        <Button variant="secondary" size="md" onClick={() => void loadDemoData(name)}>
+          {samples > 0 ? "Reset samples" : "Load samples"}
+        </Button>
+        {samples > 0 && (
+          <Button variant="quiet" size="md" onClick={() => void clearDemoData()}>
+            Clear
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function Account({ onDone }: { onDone: () => void }) {
   const account = useAccount();
@@ -64,6 +91,8 @@ export default function Account({ onDone }: { onDone: () => void }) {
             Switch to {volunteer ? "posting surplus" : "driving"}
           </Button>
         </div>
+
+        <DemoCard name={account.name} />
       </div>
     );
   }
@@ -219,7 +248,6 @@ export default function Account({ onDone }: { onDone: () => void }) {
         >
           Actually, I want to {volunteer ? "post surplus" : "drive"}
         </Button>
-
         <Button
           type="submit"
           fullWidth
@@ -235,6 +263,8 @@ export default function Account({ onDone }: { onDone: () => void }) {
           {saving ? "Saving…" : volunteer ? "Start driving" : "Register"}
         </Button>
       </div>
+
+      <DemoCard name={null} />
     </form>
   );
 }

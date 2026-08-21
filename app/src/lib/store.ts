@@ -29,7 +29,7 @@ import {
   type ClaimRow,
 } from "./backend";
 import { ZONES } from "./zones";
-import { alreadySeeded, demoPickups, markSeeded } from "./seed";
+import { alreadySeeded, demoPickups, forgetSeeded, markSeeded } from "./seed";
 import type { Pickup, NewPickup, ZoneStats } from "../types";
 
 const LOCAL_KEY = "surplus-street-pickups-v1";
@@ -421,6 +421,43 @@ export function releasePickup(id: string): Promise<void> {
 /** No DELETE policy, by design -- withdrawing keeps the row for the log. */
 export function cancelPickup(id: string): Promise<void> {
   return write(id, { status: "cancelled" });
+}
+
+// -------------------------------------------------------------- demo data
+// One tap to a known-good state. At a venue, "it worked five minutes ago" is
+// not a debugging strategy -- being able to reset the board in front of the
+// audience is.
+
+/** Replace every sample with a fresh evening. Local rows only: anything
+ *  posted to the shared board is untouched. */
+export async function loadDemoData(attributeTo?: string | null): Promise<void> {
+  const kept = readLocal().filter((p) => !p.demo);
+  const fresh = [...demoPickups(attributeTo), ...kept];
+  writeLocal(fresh);
+  markSeeded();
+  if (hasBackend) {
+    await refresh();
+  } else {
+    publish({ pickups: fresh, stats: localStats(fresh) });
+  }
+}
+
+/** Take the samples away and leave them gone -- clearing has to survive the
+ *  next load, or the seeder would put them straight back. */
+export async function clearDemoData(): Promise<void> {
+  const kept = readLocal().filter((p) => !p.demo);
+  writeLocal(kept);
+  markSeeded();
+  if (hasBackend) {
+    await refresh();
+  } else {
+    publish({ pickups: kept, stats: localStats(kept) });
+  }
+}
+
+/** Only for "start completely fresh": samples return on the next load. */
+export function resetSeedFlag(): void {
+  forgetSeeded();
 }
 
 // ------------------------------------------------------------------- reads
