@@ -11,7 +11,7 @@
 // server's idea of "tonight", and two numbers that disagree at 10pm is worse
 // than one number that comes from one place.
 //
-// The pickup details -- address, coordinates, food type, collection window --
+// The pickup details -- address, coordinates, collection window --
 // have no columns on `claims` yet (see
 // supabase/migration_003_pickup_details.sql). Until that runs they are kept
 // here, keyed by claim id, so the device that typed them still shows them and
@@ -72,7 +72,7 @@ function subscribe(l: () => void) {
 type Detail = Partial<
   Pick<
     Pickup,
-    "address" | "lat" | "lng" | "food_type" | "pickup_from" | "pickup_to" | "pickup_note"
+    "address" | "lat" | "lng" | "pickup_from" | "pickup_to" | "pickup_note"
   >
 >;
 
@@ -114,7 +114,6 @@ function hydrate(rows: ClaimRow[]): Pickup[] {
         address: r.address ?? d.address ?? "",
         lat: r.lat ?? d.lat ?? null,
         lng: r.lng ?? d.lng ?? null,
-        food_type: r.food_type ?? d.food_type ?? "Prepared hot food",
         pickup_from: r.pickup_from ?? d.pickup_from ?? r.created_at,
         pickup_to: r.pickup_to ?? d.pickup_to ?? r.created_at,
         pickup_note: r.pickup_note ?? d.pickup_note ?? null,
@@ -141,7 +140,19 @@ function writeLocal(list: Pickup[]) {
 }
 
 function newId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random()}`;
+  return `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/**
+ * Does this row live on this device rather than the shared board?
+ *
+ * Samples and anything posted while offline do. Routing writes on a global
+ * "is there a backend" flag instead of on the row itself was a real bug:
+ * taking a SAMPLE pickup sent PATCH /claims?id=eq.demo-1 to Supabase, which
+ * matched nothing, so the pickup silently never joined the route.
+ */
+function isLocalRow(id: string): boolean {
+  return id.startsWith("demo-") || id.startsWith("local-");
 }
 
 /** Samples, but only on a device that has never had any. Never inserted
@@ -186,6 +197,7 @@ function localStats(pickups: Pickup[]): ZoneStats {
 async function refresh(): Promise<void> {
   try {
     const [zoneRows, claimRows] = await Promise.all([fetchZones(), fetchClaims()]);
+    const local = seedIfEmpty(readLocal());
 
     const stats: ZoneStats = {};
     for (const r of zoneRows) {
@@ -209,7 +221,24 @@ async function refresh(): Promise<void> {
       };
     }
 
-    publish({ pickups: hydrate(claimRows), stats, ready: true, error: null });
+    // Local rows are invisible to the server, so their contribution to a
+    // zone has to be added here. Server rows are already in food_claimed.
+    for (const p of local) {
+      if (!counts(p)) continue;
+      const st = stats[p.zone_id as string];
+      if (!st) continue;
+      st.claimed += p.quantity;
+      st.pct = st.expected ? Math.min(1, st.claimed / st.expected) : 1;
+      st.covered = st.expected ? st.claimed >= st.expected : true;
+      st.status = st.covered ? "covered" : st.claimed > 0 ? "partial" : "uncovered";
+    }
+
+    publish({
+      pickups: [...local, ...hydrate(claimRows)],
+      stats,
+      ready: true,
+      error: null,
+    });
   } catch (err) {
     // A dead backend must not blank the screen mid-service.
     console.warn("could not load the board:", err);
@@ -279,7 +308,6 @@ function extrasOf(p: NewPickup): Record<string, unknown> {
     address: p.address,
     lat: p.lat,
     lng: p.lng,
-    food_type: p.food_type,
     pickup_from: p.pickup_from,
     pickup_to: p.pickup_to,
     pickup_note: p.pickup_note,
@@ -329,7 +357,6 @@ export async function postPickup(input: NewPickup): Promise<void> {
     address: input.address,
     lat: input.lat,
     lng: input.lng,
-    food_type: input.food_type,
     pickup_from: input.pickup_from,
     pickup_to: input.pickup_to,
     pickup_note: input.pickup_note,
@@ -338,15 +365,26 @@ export async function postPickup(input: NewPickup): Promise<void> {
 }
 
 async function write(id: string, patch: Record<string, unknown>): Promise<void> {
-  if (!hasBackend) {
-    const pickups = board.pickups.map((p) =>
-      p.id === id ? ({ ...p, ...patch } as Pickup) : p,
-    );
-    writeLocal(pickups);
-    publish({ pickups, stats: localStats(pickups) });
+  if (!hasBackend || isLocalRow(id)) {
+    const local = readLocal().map((p) => (p.id === id ? ({ ...p, ...patch } as Pickup) : p));
+    writeLocal(local);
+    if (!hasBackend) {
+      publish({ pickups: local, stats: localStats(local) });
+    } else {
+      await refresh();
+    }
     return;
   }
-  await patchClaim(id, patch);
+
+  try {
+    await patchClaim(id, patch);
+  } catch (err) {
+    // Silently doing nothing is the worst outcome here: the driver believes
+    // they have the run and nobody else can see it.
+    console.warn("could not save that:", err);
+    publish({ error: "That did not save — check your connection and try again." });
+    throw err;
+  }
   await refresh();
 }
 

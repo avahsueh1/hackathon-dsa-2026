@@ -1,6 +1,3 @@
-/** The categories a kitchen actually thinks in, from the design system. */
-export const FOODS = ["Prepared hot food", "Produce", "Bread & pastry", "Packaged"] as const;
-
 export const DROP_WINDOWS = [
   "Tonight, 7-8pm",
   "Tonight, 8-9pm",

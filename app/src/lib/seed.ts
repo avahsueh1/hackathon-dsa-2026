@@ -16,7 +16,6 @@ import { todayAt } from "./food";
 interface Seed {
   restaurant_name: string;
   address: string;
-  food_type: string;
   quantity: number;
   notes: string | null;
   lat: number;
@@ -29,7 +28,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Kono's Cafe",
     address: "1720 India St, Little Italy",
-    food_type: "Prepared hot food",
     quantity: 40,
     notes: "Trays are heavy — bring a cart if you have one",
     lat: 32.7248, lng: -117.1690,
@@ -38,7 +36,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Prep Kitchen",
     address: "630 Fifth Ave, Gaslamp",
-    food_type: "Bread & pastry",
     quantity: 25,
     notes: "Ask at the host stand",
     lat: 32.7118, lng: -117.1603,
@@ -47,7 +44,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Taquería Luna",
     address: "1202 Market St, East Village",
-    food_type: "Prepared hot food",
     quantity: 30,
     notes: "Back door on the alley, ask for Marco",
     lat: 32.7108, lng: -117.1541,
@@ -56,7 +52,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Bahn Thai",
     address: "1441 Ninth Ave, Cortez",
-    food_type: "Produce",
     quantity: 20,
     notes: null,
     lat: 32.7205, lng: -117.1583,
@@ -65,7 +60,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Neighborhood",
     address: "777 G St, East Village",
-    food_type: "Packaged",
     quantity: 35,
     notes: "Loading zone out front until 11",
     lat: 32.7112, lng: -117.1583,
@@ -74,7 +68,6 @@ const SEEDS: Seed[] = [
   {
     restaurant_name: "Café Virtuoso",
     address: "1616 National Ave, Barrio Logan",
-    food_type: "Bread & pastry",
     quantity: 15,
     notes: null,
     lat: 32.6982, lng: -117.1437,
@@ -88,7 +81,6 @@ export function demoPickups(): Pickup[] {
     id: `demo-${i + 1}`,
     restaurant_name: s.restaurant_name,
     address: s.address,
-    food_type: s.food_type,
     quantity: s.quantity,
     lat: s.lat,
     lng: s.lng,
@@ -104,9 +96,14 @@ export function demoPickups(): Pickup[] {
   }));
 }
 
-/** Has this device ever been seeded? Kept separate from the offers list so
- *  clearing every sample does not bring them straight back. */
-const SEEDED_KEY = "surplus-street-seeded-v1";
+/** Has this device ever been seeded? Kept separate from the pickup list so
+ *  clearing every sample does not bring them straight back.
+ *
+ *  Versioned WITH the storage keys it guards. When the pickup list moved from
+ *  ...-offers-v1 to ...-pickups-v1 this flag stayed behind, so upgrading
+ *  devices had an empty list and a flag saying "already seeded" -- and no
+ *  samples at all. Bump both together or neither. */
+const SEEDED_KEY = "surplus-street-seeded-v2";
 
 export function alreadySeeded(): boolean {
   try {

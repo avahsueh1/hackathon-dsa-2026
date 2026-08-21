@@ -3,7 +3,7 @@ import type { Pickup, ZoneStats } from "../types";
 import { deliverPickup, releasePickup, reroutePickup } from "../lib/store";
 import { ZONES, suggestZones, prettyDistance } from "../lib/zones";
 import { corner } from "../lib/streets";
-import { fmt, plural } from "../lib/format";
+import { fmt, plural, prettyDate } from "../lib/format";
 import { windowLabel } from "../lib/food";
 import PickupMap from "../components/PickupMap";
 import Button from "../components/Button";
@@ -41,6 +41,17 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
 
   const load = stops.reduce((a, p) => a + p.quantity, 0);
 
+  // A run is a night's work, so it gets a date and a span, not just a count.
+  const started = stops[0]?.created_at ?? new Date().toISOString();
+  const firstFrom = stops[0]?.pickup_from ?? started;
+  const lastTo = stops.reduce(
+    (latest, p) => (p.pickup_to > latest ? p.pickup_to : latest),
+    stops[0]?.pickup_to ?? started,
+  );
+  const destinations = Array.from(
+    new Set(stops.map((p) => (p.zone_id ? (ZONE.get(p.zone_id)?.name ?? p.zone_id) : "unset"))),
+  );
+
   if (stops.length === 0) {
     return (
       <div className="dropempty">
@@ -57,9 +68,16 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
   return (
     <div className="runscreen">
       <div className="runhead">
-        <span className="ss-label pick-label">Your route</span>
+        <div className="runhead-top">
+          <span className="ss-label pick-label">Your route</span>
+          <span className="ss-num runhead-date">{prettyDate(started.slice(0, 10))}</span>
+        </div>
         <span className="runhead-big">
           {stops.length} {plural(stops.length, "stop")} · ~{fmt(load)} meals
+        </span>
+        <span className="runhead-sub">
+          Collect {windowLabel(firstFrom, lastTo)} · dropping at{" "}
+          {destinations.length === 1 ? destinations[0] : `${destinations.length} zones`}
         </span>
       </div>
 

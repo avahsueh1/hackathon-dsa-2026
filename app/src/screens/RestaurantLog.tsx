@@ -41,13 +41,12 @@ export default function RestaurantLog({ pickups, mine, onPost }: Props) {
 
   function exportCsv() {
     const header = [
-      "date", "restaurant", "food_type", "servings", "est_lbs",
+      "date", "restaurant", "servings", "est_lbs",
       "pickup_window", "status", "volunteer", "delivered_to_zone",
     ];
     const body = rows.map((o) => [
       o.created_at.slice(0, 10),
       o.restaurant_name,
-      o.food_type,
       String(o.quantity),
       String(Math.round(o.quantity * LBS_PER_MEAL)),
       windowLabel(o.pickup_from, o.pickup_to),
@@ -95,8 +94,10 @@ export default function RestaurantLog({ pickups, mine, onPost }: Props) {
           {rows.map((o) => (
             <div key={o.id} className={`droprow${o.status === "cancelled" ? " off" : ""}`}>
               <div className="droprow-top">
-                <span className="drop-zone">{o.food_type}</span>
-                <span className="ss-num drop-meals">~{fmt(o.quantity)}</span>
+                <span className="drop-zone">~{fmt(o.quantity)} meals</span>
+                <span className="ss-num drop-meals">
+                  {Math.round(o.quantity * LBS_PER_MEAL)} {plural(Math.round(o.quantity * LBS_PER_MEAL), "lb")}
+                </span>
               </div>
 
               <span className="drop-meta">

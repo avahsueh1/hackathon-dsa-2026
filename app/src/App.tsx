@@ -54,6 +54,12 @@ export default function App() {
     document.documentElement.dataset.mode = mode;
   }, [mode]);
 
+  // A write that fails has to say so. Silently doing nothing is the worst
+  // outcome: a driver believes they have the run and nobody else can see it.
+  useEffect(() => {
+    if (error) setToast(error);
+  }, [error]);
+
   const toggle = useCallback(
     (id: string) => setSelectedId((prev) => (prev === id ? null : id)),
     [],

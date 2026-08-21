@@ -13,7 +13,7 @@
 //                              until a volunteer chooses one
 //
 // The app only uses the volunteer path. What a `claims` row does NOT carry is
-// where the food is, what it is, or when it can be collected -- see
+// where the food is or when it can be collected -- see
 // supabase/migration_003_pickup_details.sql for the columns that would fix
 // that. Until it runs, those live in the browser that typed them (store.ts).
 
@@ -52,7 +52,6 @@ export interface ClaimRow {
   address?: string | null;
   lat?: number | null;
   lng?: number | null;
-  food_type?: string | null;
   pickup_from?: string | null;
   pickup_to?: string | null;
   pickup_note?: string | null;

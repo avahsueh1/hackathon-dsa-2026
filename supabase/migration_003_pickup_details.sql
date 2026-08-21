@@ -6,10 +6,9 @@
 -- exactly that and works today.
 --
 -- What it cannot do yet is put a pickup on a map, because a `claims` row does
--- not say where the food is, what it is, or when it can be collected. The
--- volunteer screen is a map of pings with pickup times on them, so those four
--- facts are the difference between a working map and a list of restaurant
--- names.
+-- not say where the food is or when it can be collected. The volunteer screen
+-- is a map of pings with pickup times on them, so those are the difference
+-- between a working map and a list of restaurant names.
 --
 -- Until this runs, the frontend keeps them in the browser that typed them:
 -- the poster sees their own detail, other devices see the name and quantity.
@@ -25,10 +24,6 @@ alter table claims add column if not exists address text;
 -- network it already ships, so these can be filled client-side on insert.
 alter table claims add column if not exists lat numeric;
 alter table claims add column if not exists lng numeric;
-
--- "Prepared hot food" / "Produce" / "Bread & pastry" / "Packaged".
--- A driver needs to know whether it needs a cooler before accepting.
-alter table claims add column if not exists food_type text;
 
 -- The collection window. A window, not an instant: "between 9 and 10" is what
 -- a kitchen can actually promise at the end of service, and it is what the

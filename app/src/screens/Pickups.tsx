@@ -165,10 +165,9 @@ export default function Pickups({
             {chosen.demo && <span className="demotag">Sample</span>}
           </span>
           <span className="zcard-sub">{chosen.address}</span>
-          <span className="zcard-meta open">
-            {chosen.food_type}
-            {chosen.pickup_note ? ` · ${chosen.pickup_note}` : ""}
-          </span>
+          {chosen.pickup_note && (
+            <span className="zcard-meta open">{chosen.pickup_note}</span>
+          )}
 
           <span className="ss-label pick-label dropq">Where do you want to drop it off?</span>
 
@@ -229,9 +228,7 @@ export default function Pickups({
                   {p.restaurant_name}
                   {p.demo && <span className="demotag">Sample</span>}
                 </span>
-                <span className="pickuprow-sub">
-                  {p.food_type} · {p.address}
-                </span>
+                <span className="pickuprow-sub">{p.address}</span>
               </span>
               <span className="ss-num pickuprow-qty">~{fmt(p.quantity)}</span>
             </button>

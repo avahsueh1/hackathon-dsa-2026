@@ -114,7 +114,6 @@ export interface Pickup {
   address: string;
   lat: number | null;
   lng: number | null;
-  food_type: string;
   pickup_from: string;
   pickup_to: string;
   pickup_note: string | null;
@@ -129,7 +128,6 @@ export interface NewPickup {
   address: string;
   lat: number | null;
   lng: number | null;
-  food_type: string;
   pickup_from: string;
   pickup_to: string;
   pickup_note: string | null;

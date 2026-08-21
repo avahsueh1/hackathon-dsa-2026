@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import type { Restaurant } from "../types";
 import { postPickup } from "../lib/store";
-import { FOODS, PICKUP_WINDOWS, todayAt } from "../lib/food";
+import { PICKUP_WINDOWS, todayAt } from "../lib/food";
 import { locate } from "../lib/geocode";
 import QuantityStepper from "../components/QuantityStepper";
 import Button from "../components/Button";
@@ -41,7 +41,6 @@ interface Props {
 
 export default function PostOffer({ account, onPosted }: Props) {
   const [qty, setQty] = useState(25);
-  const [food, setFood] = useState<string | null>(null);
   const [win, setWin] = useState(PICKUP_WINDOWS[3]);
   const [notes, setNotes] = useState("");
   const [name, setName] = useState(account?.name ?? "");
@@ -64,7 +63,6 @@ export default function PostOffer({ account, onPosted }: Props) {
       await postPickup({
         restaurant_name: name.trim(),
         address: address.trim(),
-        food_type: food ?? FOODS[0],
         quantity: qty,
         pickup_note: notes.trim() || null,
         // Resolved from the typed address against the block network the app
@@ -76,7 +74,6 @@ export default function PostOffer({ account, onPosted }: Props) {
         pickup_to: todayAt(win.to),
       });
       rememberAddress(address.trim());
-      setFood(null);
       setNotes("");
       setEditingAddress(false);
       onPosted();
@@ -96,22 +93,6 @@ export default function PostOffer({ account, onPosted }: Props) {
         </span>
 
         <QuantityStepper value={qty} onChange={setQty} unit="meals" />
-
-        <div className="pickgroup">
-          <span className="ss-label pick-label">What kind of food?</span>
-          <div className="pickrow">
-            {FOODS.map((f) => (
-              <button
-                key={f}
-                type="button"
-                className={`pick${f === food ? " on" : ""}`}
-                onClick={() => setFood(f)}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
 
         <div className="pickgroup">
           <span className="ss-label pick-label">When can it be collected?</span>
@@ -195,15 +176,13 @@ export default function PostOffer({ account, onPosted }: Props) {
 
         <Button
           fullWidth
-          disabled={!food || needsName || needsAddress || saving}
+          disabled={needsName || needsAddress || saving}
           disabledReason={
-            !food
-              ? "Pick what you’re offering first"
-              : needsName
-                ? "Add your business name"
-                : needsAddress
-                  ? "Add the pickup address"
-                  : undefined
+            needsName
+              ? "Add your business name"
+              : needsAddress
+                ? "Add the pickup address"
+                : undefined
           }
           onClick={submit}
         >

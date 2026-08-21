@@ -829,3 +829,7 @@ button { font: inherit; color: inherit; }
 .stopdrop-zone { font: var(--t-body-lg); font-weight: 650; color: var(--mint-ink); overflow-wrap: anywhere; }
 .stopactions { display: flex; gap: var(--s-2); }
 .stopactions .btn { flex: 1; min-width: 0; }
+
+.runhead-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.runhead-date { font: var(--t-caption); color: var(--text-muted); white-space: nowrap; }
+.runhead-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
