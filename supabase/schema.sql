@@ -57,3 +57,55 @@ create policy "users update their own claims"
 -- Deliberately no DELETE policy. The app cancels by setting
 -- status = 'cancelled' instead, so the SB 1383 donation trail stays intact --
 -- a compliance log with rows silently missing is worse than no log.
+
+-- ---------------------------------------------------------------------------
+-- Restaurants
+--
+-- Registering once means a restaurant never types its own name again, and the
+-- SB 1383 log attributes every drop to the right business. Until Supabase Auth
+-- is wired, the app keeps this in localStorage and this table is the target
+-- shape -- see docs/BACKEND.md for the adapter.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.restaurants (
+  id             uuid primary key default gen_random_uuid(),
+  name           text not null,
+  address        text not null,
+  business_type  text,
+  contact_name   text not null,
+  email          text not null,
+  phone          text,
+  typical_meals  integer check (typical_meals is null or typical_meals >= 0),
+  surplus_days   text[],                       -- {"Fri","Sat"}
+  created_by     uuid references auth.users (id) default auth.uid(),
+  created_at     timestamptz not null default now()
+);
+
+create unique index if not exists restaurants_owner_idx
+  on public.restaurants (created_by);
+
+alter table public.restaurants enable row level security;
+
+-- A restaurant's own contact details are NOT public. Unlike claims -- which
+-- everyone must see to avoid double-booking a zone -- nothing here helps
+-- another donor, and it is the one place the app holds personal data.
+create policy "owners read their own restaurant"
+  on public.restaurants for select
+  to authenticated
+  using (created_by = auth.uid());
+
+create policy "owners create their own restaurant"
+  on public.restaurants for insert
+  to authenticated
+  with check (created_by = auth.uid());
+
+create policy "owners update their own restaurant"
+  on public.restaurants for update
+  to authenticated
+  using (created_by = auth.uid())
+  with check (created_by = auth.uid());
+
+-- Claims already carry restaurant_name as text, which keeps the log readable
+-- even if an account is later removed. Optionally link them:
+--   alter table public.claims
+--     add column if not exists restaurant_id uuid references public.restaurants (id);

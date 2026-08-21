@@ -113,6 +113,54 @@ window.SurplusStore.init();
 
 Schema and row-level security: [`../supabase/schema.sql`](../supabase/schema.sql).
 
+## Accounts
+
+Registering once removes the "Your business" field from every claim and makes
+the SB 1383 log attribute drops to the right business. Same adapter pattern:
+
+```js
+window.SurplusAccount.adapter = {
+  get:      ()        => Promise /* -> restaurant | null */,
+  register: (details) => Promise /* -> restaurant */,
+  signOut:  ()        => Promise
+};
+```
+
+With Supabase Auth the shape is roughly:
+
+```js
+window.SurplusAccount.adapter = {
+  get: async () => {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) return null;
+    const { data } = await sb.from("restaurants").select("*").maybeSingle();
+    return data && { name: data.name, address: data.address, type: data.business_type,
+                     contact: data.contact_name, email: data.email, phone: data.phone,
+                     typical: data.typical_meals, days: data.surplus_days || [] };
+  },
+  register: async (d) => {
+    // magic link, so there is no password to build a reset flow for
+    await sb.auth.signInWithOtp({ email: d.email });
+    const { data, error } = await sb.from("restaurants").upsert({
+      name: d.name, address: d.address, business_type: d.type,
+      contact_name: d.contact, email: d.email, phone: d.phone,
+      typical_meals: d.typical, surplus_days: d.days
+    }).select().single();
+    if (error) throw error;
+    return d;
+  },
+  signOut: () => sb.auth.signOut()
+};
+```
+
+`restaurants` is in [`../supabase/schema.sql`](../supabase/schema.sql). Note its
+RLS is **owner-only**, unlike `claims`: a restaurant's contact details help no
+other donor, and it is the one place the app holds personal data.
+
+Once auth is live the app should take `who` from the session rather than the
+form. It already prefers a registered account over the free-text field, so that
+is a small edit.
+
 ## Three things to agree before either of you writes code
 
 1. **Who generates `id`.** The demo makes a client-side string

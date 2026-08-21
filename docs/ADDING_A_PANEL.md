@@ -93,6 +93,20 @@ map zooms, counter-scale them inside `applyTransform` with `1 / k`.
 5. **Say what you cannot support.** If a number is an estimate, label it as one
    on screen. The judges are scoring honesty about uncertainty.
 
+## Two CSS traps
+
+**1. `[hidden]` loses to any display rule.** The browser's own rule is
+`[hidden] { display: none }`, and *any* author rule with a `display` beats it.
+So `.mycard { display: flex }` silently un-hides an element you set `hidden` on.
+This bit twice here -- an empty account chip rendered in the nav bar, and the
+registered card showed on top of the sign-up form. There is now a global
+`[hidden] { display: none !important; }` so it cannot happen again, but know
+why it is there before you remove it.
+
+**2. Class names are global.** One stylesheet, no scoping, and a collision is
+silent. `.bar` was already the map controls row (`display:flex`); reusing it for
+a progress bar collapsed it to zero width with no error at all. Prefix yours.
+
 ## Checking your work
 
 ```bash

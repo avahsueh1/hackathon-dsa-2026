@@ -43,6 +43,13 @@
 
 * { box-sizing: border-box; }
 
+/* The browser's own [hidden] rule is display:none, but any author rule with a
+   display value beats it -- so .regcard{display:flex} silently un-hides a
+   hidden element. That bit twice (the signed-in chip rendered empty in the nav
+   bar, and the registered card showed over the form). Make [hidden] mean
+   hidden, once, for every panel anyone adds later. */
+[hidden] { display: none !important; }
+
 html, body {
   margin: 0;
   padding: 0;
@@ -975,6 +982,134 @@ ul.zwho li::before { content: "\2713"; position: absolute; left: 0; color: #4f7a
 .trayout.demo b { color: #573a08; }
 .trayout.err { background: #f6ece6; color: #7a4a30; }
 
+/* ================================================== restaurant sign-up ==== */
+/* Self-contained: everything the sign-up page needs is in this block, so it   */
+/* can be restyled without touching the rest of the app.                       */
+
+.signupwrap { max-width: 640px; }
+
+.signup {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 12px;
+  padding: 26px 28px;
+}
+
+.signuphead { margin-bottom: 20px; }
+.signuphead h2 {
+  font-size: 21px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.02em;
+}
+.signuphead p {
+  font-size: 13.5px; line-height: 1.6; color: var(--text-secondary);
+  margin: 0; max-width: 52ch;
+}
+
+/* The liability answer. Deliberately the first thing after the title -- it is
+   the objection every restaurant raises, and volunteering it reads better than
+   waiting to be asked. */
+.reassure {
+  background: #eef4fb; border: 1px solid #cddff2;
+  border-radius: 10px; padding: 15px 17px; margin-bottom: 22px;
+}
+.reassure h3 { font-size: 14px; font-weight: 600; margin: 0 0 7px; color: #1c4b80; }
+.reassure p {
+  font-size: 12.5px; line-height: 1.6; margin: 0 0 7px; color: #2c5a8f;
+}
+.reassure p:last-child { margin-bottom: 0; }
+.reassure b { color: #16375c; }
+
+fieldset.fgroup {
+  border: none; border-top: 1px solid var(--border-subtle);
+  margin: 0 0 4px; padding: 16px 0 4px;
+}
+fieldset.fgroup legend {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); font-weight: 600; padding: 0 8px 0 0;
+}
+
+.field { margin-bottom: 15px; }
+.field label {
+  display: block; font-size: 13px; font-weight: 500; margin-bottom: 5px;
+}
+.req { color: #b5333f; font-weight: 400; }
+.field input[type="text"],
+.field input[type="email"],
+.field input[type="tel"],
+.field input[type="number"],
+.field select {
+  width: 100%; font-family: inherit; font-size: 14px; padding: 10px 12px;
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  background: var(--surface); color: var(--text-primary);
+}
+.field input:focus-visible, .field select:focus-visible {
+  outline: 2px solid var(--step-500); outline-offset: 1px;
+}
+.field input[aria-invalid="true"] { border-color: #b5333f; }
+.field .hint { font-size: 11.5px; color: var(--text-muted); margin: 5px 0 0; line-height: 1.5; }
+.field .err { font-size: 11.5px; color: #9c2a35; margin: 5px 0 0; }
+
+.fieldrow { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+.chiprow, .daysrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip, .day {
+  font-family: inherit; font-size: 12.5px; padding: 6px 13px; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 20px;
+  background: var(--surface-raised); color: var(--text-secondary);
+}
+.chip:hover, .day:hover { border-color: var(--step-500); color: var(--step-500); }
+.chip[aria-pressed="true"], .day[aria-pressed="true"] {
+  background: var(--step-500); border-color: var(--step-500); color: #fff;
+}
+
+.checkfield { margin: 6px 0 16px; }
+.checkline {
+  display: flex; gap: 10px; align-items: flex-start;
+  font-size: 13px; line-height: 1.55; font-weight: 400; cursor: pointer;
+}
+.checkline input { margin-top: 2px; accent-color: var(--step-500); flex: none; }
+
+.privacyline {
+  font-size: 11.5px; color: var(--text-muted); line-height: 1.55;
+  padding: 11px 13px; background: var(--surface-sunken); border-radius: 8px;
+  margin-bottom: 18px;
+}
+
+.signupactions { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.btn.big { font-size: 14px; padding: 11px 22px; }
+.signupnote { font-size: 12.5px; color: #9c2a35; }
+.signupnote.ok { color: #3f6b33; }
+
+/* ---------------------------------------------------- registered state ---- */
+
+.regcard {
+  display: flex; gap: 16px; align-items: flex-start;
+  background: #e8f0e4; border: 1px solid #c3d6b9;
+  border-radius: 12px; padding: 20px 22px; margin-bottom: 20px;
+}
+.regtick {
+  flex: none; width: 34px; height: 34px; border-radius: 50%;
+  background: #4f7a41; color: #fff; display: grid; place-items: center;
+  font-size: 17px; font-weight: 700;
+}
+.regcard h2 { font-size: 17px; font-weight: 600; margin: 0 0 4px; color: #2c4723; }
+.regcard p { font-size: 13px; line-height: 1.6; margin: 0; color: #3f5c33; }
+.regactions { display: flex; gap: 9px; margin-top: 12px; }
+
+/* The signed-in chip that appears in the tab bar once registered. */
+.whochip {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 12px; color: var(--text-secondary);
+  border: 1px solid var(--border-strong); border-radius: 20px;
+  padding: 4px 11px; margin-left: auto;
+}
+.whochip .dot { width: 7px; height: 7px; border-radius: 50%; background: #4f7a41; }
+.whochip b { color: var(--text-primary); font-weight: 600; }
+
+@media (max-width: 640px) {
+  .signup { padding: 20px 18px; }
+  .fieldrow { grid-template-columns: 1fr; }
+}
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -1017,6 +1152,8 @@ ul.zwho li::before { content: "\2713"; position: absolute; left: 0; color: #4f7a
   <button role="tab" id="tb-drops" aria-selected="false" aria-controls="tab-drops">My drops</button>
   <button role="tab" id="tb-explore" aria-selected="false" aria-controls="tab-explore">The situation</button>
   <button role="tab" id="tb-plan" aria-selected="false" aria-controls="tab-plan">Shelter plan</button>
+  <button role="tab" id="tb-signup" aria-selected="false" aria-controls="tab-signup">Sign up</button>
+  <span class="whochip" id="who-chip" hidden></span>
   <button class="theme" id="theme-btn" title="Switch between light and dark">Theme: auto</button>
 </nav>
 
@@ -1114,6 +1251,142 @@ ul.zwho li::before { content: "\2713"; position: absolute; left: 0; color: #4f7a
   <table class="plain" id="drops-table"></table>
   <p class="foot" id="drops-empty" hidden>No drops yet. Claim a zone on the
   <b>Tonight</b> tab and it will appear here.</p>
+</section>
+
+<section class="tab" id="tab-signup" role="tabpanel" aria-labelledby="tb-signup" hidden>
+
+  <div class="signupwrap">
+
+    <!-- ============ registered state ============ -->
+    <div class="regcard" id="reg-card" hidden>
+      <div class="regtick" aria-hidden="true">&#10003;</div>
+      <div>
+        <h2>You&rsquo;re registered</h2>
+        <p id="reg-summary"></p>
+        <div class="regactions">
+          <button class="btn ghostbtn" id="reg-edit">Edit details</button>
+          <button class="btn ghostbtn" id="reg-out">Sign out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ the form ============ -->
+    <form class="signup" id="signup-form" novalidate>
+
+      <header class="signuphead">
+        <h2>Register your restaurant</h2>
+        <p>Two minutes, once. After this, claiming a zone takes one tap &mdash; we
+        already know who you are and where to put you on the log.</p>
+      </header>
+
+      <!-- The single biggest objection, answered before it is raised. -->
+      <div class="reassure">
+        <h3>You cannot be sued for donating food in good faith</h3>
+        <p>The federal <b>Bill Emerson Good Samaritan Food Donation Act</b> and
+        California <b>AB 1219</b> protect good-faith food donors from civil and
+        criminal liability. This is the law already, whether or not you use this app.</p>
+        <p>And if you are a <b>large food business</b>, California <b>SB 1383</b>
+        already requires you to donate surplus edible food <i>and keep records of it</i>.
+        We generate those records for you.</p>
+      </div>
+
+      <fieldset class="fgroup">
+        <legend>Your business</legend>
+
+        <div class="field">
+          <label for="su-name">Business name <span class="req">*</span></label>
+          <input type="text" id="su-name" name="name" autocomplete="organization"
+                 placeholder="Trattoria on 5th" required>
+          <p class="err" data-for="su-name" hidden>Please enter your business name.</p>
+        </div>
+
+        <div class="field">
+          <label for="su-address">Pickup address <span class="req">*</span></label>
+          <input type="text" id="su-address" name="address" autocomplete="street-address"
+                 placeholder="555 Fifth Ave, San Diego, CA 92101" required>
+          <p class="hint">Where a volunteer would collect from, if you ever want that.</p>
+          <p class="err" data-for="su-address" hidden>Please enter an address.</p>
+        </div>
+
+        <div class="field">
+          <label for="su-type">Type of business</label>
+          <select id="su-type" name="type">
+            <option value="Restaurant">Restaurant</option>
+            <option value="Cafe">Caf&eacute;</option>
+            <option value="Bakery">Bakery</option>
+            <option value="Grocery">Grocery or market</option>
+            <option value="Caterer">Caterer or event venue</option>
+            <option value="Hotel">Hotel or institution</option>
+            <option value="Other">Something else</option>
+          </select>
+        </div>
+      </fieldset>
+
+      <fieldset class="fgroup">
+        <legend>Who we contact</legend>
+
+        <div class="field">
+          <label for="su-contact">Your name <span class="req">*</span></label>
+          <input type="text" id="su-contact" name="contact" autocomplete="name"
+                 placeholder="Alex Rivera" required>
+          <p class="err" data-for="su-contact" hidden>Please enter a contact name.</p>
+        </div>
+
+        <div class="fieldrow">
+          <div class="field">
+            <label for="su-email">Email <span class="req">*</span></label>
+            <input type="email" id="su-email" name="email" autocomplete="email"
+                   placeholder="alex@trattoria.com" required>
+            <p class="err" data-for="su-email" hidden>That does not look like an email address.</p>
+          </div>
+          <div class="field">
+            <label for="su-phone">Phone</label>
+            <input type="tel" id="su-phone" name="phone" autocomplete="tel"
+                   placeholder="(619) 555-0134">
+            <p class="hint">Only used if a drop needs sorting out.</p>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="fgroup">
+        <legend>What you usually have</legend>
+
+        <div class="field">
+          <label for="su-typical">Rough surplus on a normal night</label>
+          <div class="chiprow" id="su-typical-chips"></div>
+          <input type="number" id="su-typical" name="typical" min="0" max="2000"
+                 placeholder="25" inputmode="numeric">
+          <p class="hint">Meals, very roughly. Only used to suggest a sensible
+          default when you claim &mdash; you type the real number each time.</p>
+        </div>
+
+        <div class="field">
+          <label>Nights you usually have surplus</label>
+          <div class="daysrow" id="su-days"></div>
+          <p class="hint">Optional. Helps us tell you when a nearby zone is uncovered.</p>
+        </div>
+      </fieldset>
+
+      <div class="field checkfield">
+        <label class="checkline">
+          <input type="checkbox" id="su-agree" required>
+          <span>The food we donate will be safe to eat and handled the way we would
+          handle food we serve. <span class="req">*</span></span>
+        </label>
+        <p class="err" data-for="su-agree" hidden>Please confirm this to continue.</p>
+      </div>
+
+      <div class="privacyline">
+        We store your business details and your drop history. We never share them,
+        and none of it is shown on the public map.
+      </div>
+
+      <div class="signupactions">
+        <button type="submit" class="btn primary big" id="su-submit">Create account</button>
+        <span class="signupnote" id="su-note"></span>
+      </div>
+    </form>
+  </div>
 </section>
 
 <section class="tab" id="tab-explore" role="tabpanel" aria-labelledby="tb-explore" hidden>
@@ -2981,7 +3254,7 @@ themeBtn.addEventListener("click", function () {
 // Panels are populated from the inlined JSON, so adding a new one means
 // adding a section and a render function -- see docs/ADDING_A_PANEL.md.
 
-var TABS = ["tonight", "drops", "explore", "plan"];
+var TABS = ["tonight", "drops", "explore", "plan", "signup"];
 
 function showTab(name) {
   TABS.forEach(function (t) {
@@ -3801,10 +4074,19 @@ function openClaim(zoneId) {
   // claim. The business name is the opposite: remembering it saves retyping.
   document.getElementById("claim-what").value = "";
   document.getElementById("claim-when").selectedIndex = 1;
-  try {
-    document.getElementById("claim-who").value =
-      localStorage.getItem("surplus-street-who") || "";
-  } catch (e) {}
+  // A registered account is the authority on who is donating. The remembered
+  // free-text name is only a convenience for someone who has not signed up --
+  // preferring it would attribute the donation to the wrong business on the
+  // SB 1383 log, which is exactly the record that has to be right.
+  var acct = window.SurplusAccount && window.SurplusAccount.current;
+  if (acct && acct.name) {
+    document.getElementById("claim-who").value = acct.name;
+  } else {
+    try {
+      document.getElementById("claim-who").value =
+        localStorage.getItem("surplus-street-who") || "";
+    } catch (e) {}
+  }
 
   modal.hidden = false;
   document.getElementById("claim-meals").focus();
@@ -3830,8 +4112,13 @@ document.getElementById("claim-confirm").addEventListener("click", function () {
     document.getElementById("claim-meals").focus();
     return;
   }
-  var who = document.getElementById("claim-who").value.trim();
-  try { localStorage.setItem("surplus-street-who", who); } catch (e) {}
+  var acct2 = window.SurplusAccount && window.SurplusAccount.current;
+  var who = acct2 && acct2.name
+    ? acct2.name
+    : document.getElementById("claim-who").value.trim();
+  if (!(acct2 && acct2.name)) {
+    try { localStorage.setItem("surplus-street-who", who); } catch (e) {}
+  }
 
   var list = loadClaims();
   list.push({
@@ -3957,6 +4244,239 @@ window.SurplusVision = Vision;
       out.textContent = "Could not read the photo. Type the number instead.";
     });
   });
+})();
+
+
+// ------------------------------------------------------- restaurant account
+// Registering once removes the "Your business" field from every later claim,
+// which is the actual payoff -- signup friction is only worth it if it buys
+// something back.
+//
+// Same adapter pattern as claims and vision, so Supabase Auth can replace the
+// local store without touching the form. See docs/BACKEND.md.
+
+var ACCOUNT_KEY = "surplus-street-account-v1";
+
+var Account = {
+  adapter: null,        // null = this browser only
+  current: null,
+  onChange: null,
+
+  // An adapter implements:
+  //   get()             -> Promise<restaurant|null>
+  //   register(details) -> Promise<restaurant>
+  //   signOut()         -> Promise
+
+  init: function () {
+    if (!Account.adapter) {
+      try {
+        Account.current = JSON.parse(localStorage.getItem(ACCOUNT_KEY) || "null");
+      } catch (e) {
+        Account.current = null;
+      }
+      return Promise.resolve(Account.current);
+    }
+    return Account.adapter.get().then(function (r) {
+      Account.current = r || null;
+      if (Account.onChange) Account.onChange();
+      return Account.current;
+    }).catch(function () { return null; });
+  },
+
+  register: function (details) {
+    if (!Account.adapter) {
+      Account.current = details;
+      try {
+        localStorage.setItem(ACCOUNT_KEY, JSON.stringify(details));
+      } catch (e) {
+        console.warn("account could not be saved:", e);
+      }
+      if (Account.onChange) Account.onChange();
+      return Promise.resolve(details);
+    }
+    return Account.adapter.register(details).then(function (r) {
+      Account.current = r || details;
+      if (Account.onChange) Account.onChange();
+      return Account.current;
+    });
+  },
+
+  signOut: function () {
+    Account.current = null;
+    try { localStorage.removeItem(ACCOUNT_KEY); } catch (e) {}
+    var p = Account.adapter ? Account.adapter.signOut() : Promise.resolve();
+    return p.then(function () { if (Account.onChange) Account.onChange(); });
+  }
+};
+
+window.SurplusAccount = Account;
+
+// ---------------------------------------------------------------- the form
+
+(function wireSignup() {
+  var form = document.getElementById("signup-form");
+  if (!form) return;
+
+  var card = document.getElementById("reg-card");
+  var note = document.getElementById("su-note");
+
+  // quick-pick chips for the typical surplus figure
+  var chips = document.getElementById("su-typical-chips");
+  [10, 25, 50, 100].forEach(function (v) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "chip";
+    b.textContent = v;
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () {
+      document.getElementById("su-typical").value = v;
+      Array.prototype.forEach.call(chips.children, function (c) {
+        c.setAttribute("aria-pressed", String(c === b));
+      });
+    });
+    chips.appendChild(b);
+  });
+
+  var DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  var daysRow = document.getElementById("su-days");
+  DAYS.forEach(function (d) {
+    var b = document.createElement("button");
+    b.type = "button";
+    b.className = "day";
+    b.textContent = d;
+    b.dataset.day = d;
+    b.setAttribute("aria-pressed", "false");
+    b.addEventListener("click", function () {
+      b.setAttribute("aria-pressed",
+        b.getAttribute("aria-pressed") === "true" ? "false" : "true");
+    });
+    daysRow.appendChild(b);
+  });
+
+  function showError(id, on) {
+    var input = document.getElementById(id);
+    var msg = form.querySelector('.err[data-for="' + id + '"]');
+    if (input) input.setAttribute("aria-invalid", on ? "true" : "false");
+    if (msg) msg.hidden = !on;
+    return !on;
+  }
+
+  function validate() {
+    var ok = true;
+    ["su-name", "su-address", "su-contact"].forEach(function (id) {
+      var v = document.getElementById(id).value.trim();
+      ok = showError(id, !v) && ok;
+    });
+    var email = document.getElementById("su-email").value.trim();
+    ok = showError("su-email", !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) && ok;
+    ok = showError("su-agree", !document.getElementById("su-agree").checked) && ok;
+    return ok;
+  }
+
+  // Clear an error as soon as the field is touched -- shouting at someone
+  // while they are still typing is not helpful.
+  form.addEventListener("input", function (e) {
+    if (e.target.id) showError(e.target.id, false);
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    note.className = "signupnote";
+    if (!validate()) {
+      note.textContent = "Please fix the highlighted fields.";
+      var bad = form.querySelector('[aria-invalid="true"]');
+      if (bad) bad.focus();
+      return;
+    }
+
+    var days = Array.prototype.filter.call(daysRow.children, function (b) {
+      return b.getAttribute("aria-pressed") === "true";
+    }).map(function (b) { return b.dataset.day; });
+
+    Account.register({
+      name: document.getElementById("su-name").value.trim(),
+      address: document.getElementById("su-address").value.trim(),
+      type: document.getElementById("su-type").value,
+      contact: document.getElementById("su-contact").value.trim(),
+      email: document.getElementById("su-email").value.trim(),
+      phone: document.getElementById("su-phone").value.trim(),
+      typical: parseInt(document.getElementById("su-typical").value, 10) || null,
+      days: days,
+      registered_at: todayStamp()
+    }).then(function () {
+      note.className = "signupnote ok";
+      note.textContent = "Registered.";
+    }).catch(function (err) {
+      note.textContent = "Could not register: " + (err && err.message ? err.message : err);
+    });
+  });
+
+  document.getElementById("reg-edit").addEventListener("click", function () {
+    card.hidden = true;
+    form.hidden = false;
+    document.getElementById("su-name").focus();
+  });
+
+  document.getElementById("reg-out").addEventListener("click", function () {
+    Account.signOut();
+  });
+
+  function paintAccount() {
+    var a = Account.current;
+    var chip = document.getElementById("who-chip");
+
+    if (a) {
+      form.hidden = true;
+      card.hidden = false;
+      document.getElementById("reg-summary").innerHTML =
+        "<b>" + a.name + "</b> &middot; " + a.address +
+        "<br>Claims are logged to this business, and your SB 1383 export is on " +
+        "the <b>My drops</b> tab.";
+      // prefill the form for an edit
+      document.getElementById("su-name").value = a.name || "";
+      document.getElementById("su-address").value = a.address || "";
+      document.getElementById("su-contact").value = a.contact || "";
+      document.getElementById("su-email").value = a.email || "";
+      document.getElementById("su-phone").value = a.phone || "";
+      if (a.typical) document.getElementById("su-typical").value = a.typical;
+      if (a.type) document.getElementById("su-type").value = a.type;
+      Array.prototype.forEach.call(daysRow.children, function (b) {
+        b.setAttribute("aria-pressed",
+          String((a.days || []).indexOf(b.dataset.day) >= 0));
+      });
+      if (chip) {
+        chip.hidden = false;
+        chip.innerHTML = '<span class="dot"></span><b>' + a.name + "</b>";
+      }
+    } else {
+      form.hidden = false;
+      card.hidden = true;
+      form.reset();
+      Array.prototype.forEach.call(daysRow.children, function (b) {
+        b.setAttribute("aria-pressed", "false");
+      });
+      note.textContent = "";
+      if (chip) chip.hidden = true;
+    }
+
+    // A registered restaurant should never be asked its own name again.
+    var whoField = document.getElementById("claim-who");
+    if (whoField) {
+      var wrap = whoField.previousElementSibling;
+      whoField.parentNode.style.display = "";
+      if (a) {
+        whoField.value = a.name;
+        whoField.style.display = "none";
+        if (wrap && wrap.classList.contains("flab")) wrap.style.display = "none";
+      } else {
+        whoField.style.display = "";
+        if (wrap && wrap.classList.contains("flab")) wrap.style.display = "";
+      }
+    }
+  }
+
+  Account.onChange = paintAccount;
+  Account.init().then(paintAccount);
 })();
 
 // ------------------------------------------------------ my drops + SB 1383
