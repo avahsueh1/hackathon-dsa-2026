@@ -140,17 +140,26 @@ function newId(): string {
  *  goes to the same place the reads came from. */
 let offersShared = false;
 
+/** Asked and answered. Without this the app re-probes a table it already
+ *  knows is missing on every single refresh, which is a 404 per poll. The
+ *  answer only changes when someone runs the migration, and the handoff doc
+ *  says to reload after that. */
+let offersProbed = false;
+
 async function loadOffers(): Promise<Offer[]> {
   if (!hasBackend) return readLocalOffers();
+  if (offersProbed && !offersShared) return readLocalOffers();
   try {
     const rows = await fetchOffers();
     offersShared = true;
+    offersProbed = true;
     return rows as Offer[];
   } catch (err) {
     if (isMissingTable(err)) {
-      // The migration is not applied yet. This is a known state, not a
-      // failure -- run offers on this device so the app still works.
+      // The migration is not applied yet. A known state, not a failure --
+      // run offers on this device so the app still works.
       offersShared = false;
+      offersProbed = true;
       return readLocalOffers();
     }
     throw err;
@@ -284,35 +293,39 @@ export function initStore(): void {
     return;
   }
 
-  void refresh();
+  // The first refresh has to finish before we decide which channels to open:
+  // it is what discovers whether the `offers` table exists. Firing it and
+  // subscribing in parallel meant that on a slow connection the claims
+  // subscription resolved first, read offersShared while it was still false,
+  // and quietly never opened the offers channel for the rest of the session.
+  void refresh().then(() => {
+    // Realtime is the product: a restaurant posts surplus and it appears on
+    // every driver's phone without a refresh. `zones` has no publication on
+    // the backend's side, so any event refetches everything.
+    const channels: Promise<unknown>[] = [
+      subscribeToClaims(() => void refresh()).then((off) => {
+        unsubscribeRealtime = off;
+      }),
+    ];
 
-  // Realtime is the product: another restaurant claims a zone and every other
-  // phone has to show it without a refresh. `zones` has no publication on
-  // their side, so a claims event refetches both.
-  subscribeToClaims(() => void refresh())
-    .then((off) => {
-      unsubscribeRealtime = off;
-      publish({ live: true });
-      // Only worth a channel if the table is actually there.
-      if (offersShared) {
-        subscribeToOffers(() => void refresh())
-          .then((offOffers) => {
-            unsubscribeOffers = offOffers;
-          })
-          .catch((err) => {
-            console.warn("offer realtime unavailable, polling instead:", err);
-            startPolling();
-          });
-      }
-    })
-    .catch((err) => {
-      // Polling is not as good, but a board that goes stale for twenty seconds
-      // beats one that silently never updates again -- which is what used to
-      // happen here, with the header sitting on "Connected" forever.
-      console.warn("realtime unavailable, polling instead:", err);
-      publish({ live: false });
-      startPolling();
-    });
+    if (offersShared) {
+      channels.push(
+        subscribeToOffers(() => void refresh()).then((off) => {
+          unsubscribeOffers = off;
+        }),
+      );
+    }
+
+    Promise.all(channels)
+      .then(() => publish({ live: true }))
+      .catch((err) => {
+        // Polling is not as good, but a board that goes stale for twenty
+        // seconds beats one that silently never updates again.
+        console.warn("realtime unavailable, polling instead:", err);
+        publish({ live: false });
+        startPolling();
+      });
+  });
 }
 
 export function teardownStore(): void {

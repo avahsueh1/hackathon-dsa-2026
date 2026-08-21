@@ -1,3 +1,12 @@
+> **Superseded.** This describes the single-file build's `window.SurplusStore`
+> seam, which no longer exists — the app is React + Vite under `app/`, and the
+> backend is live rather than hypothetical.
+>
+> For the current work, see **[BACKEND_HANDOFF.md](BACKEND_HANDOFF.md)**.
+>
+> Kept for the reasoning in "What is dynamic, and what is not", which still
+> holds: the zone model and geometry stay in git, not in Postgres.
+
 # Wiring up a backend
 
 Short answer: **yes, easily.** One seam, already cut and tested against a fake
