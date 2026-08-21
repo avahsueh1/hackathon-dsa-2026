@@ -48,6 +48,24 @@ blocks where people sleep is surveillance of people who cannot consent to it, so
 
 > This is a resource-allocation tool, not an enforcement one.
 
+## Reading the source
+
+`index.html` is one self-contained file, but 85% of it is inlined JSON. For a
+readable copy:
+
+```bash
+python3 scripts/extract_ui.py    # -> ui-source.html, ~154 KB, all code
+```
+
+That output is git-ignored because it is derived — edit `index.html` itself.
+It is both the source and the artifact: `build_page.py` only rewrites what sits
+between the `__DATA_BEGIN__` / `__DATA_END__` markers, and those survive every
+build.
+
+One gotcha: the stylesheet is global and single-file. A class name collision is
+silent — `.bar` was already the map controls row, and reusing it collapsed the
+comparison bars to zero width. Prefix new classes.
+
 ## Honest limits
 
 - **Claims are stored in this browser** (`localStorage`). That demonstrates the
