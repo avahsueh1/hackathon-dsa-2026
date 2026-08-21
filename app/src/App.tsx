@@ -48,10 +48,21 @@ export default function App() {
     document.documentElement.dataset.mode = mode;
   }, [mode]);
 
-  const select = useCallback(
+  // On the map, tapping the same zone twice clears it -- the map is still
+  // there underneath, so there is something to go back to.
+  const toggle = useCallback(
     (id: string) => setSelectedId((prev) => (prev === id ? null : id)),
     [],
   );
+
+  // On Tonight, a ring is a question about geography: "where is this?".
+  // Answer it by going to the map with that zone framed and its claim button
+  // on screen. Selecting without moving only outlined a card further down the
+  // list, which on a phone is off screen and reads as nothing happening.
+  const showOnMap = useCallback((id: string) => {
+    setSelectedId(id);
+    setTab("map");
+  }, []);
 
   // Wait for the account AND the first load of the board. A landing page that
   // flashes and vanishes reads as a bug, and so does a board that says
@@ -111,7 +122,7 @@ export default function App() {
             claims={claims}
             stats={stats}
             selectedId={selectedId}
-            onSelect={select}
+            onSelect={showOnMap}
             onClaim={setClaiming}
           />
         )}
@@ -120,7 +131,7 @@ export default function App() {
             claims={claims}
             stats={stats}
             selectedId={selectedId}
-            onSelect={select}
+            onSelect={toggle}
             onClaim={setClaiming}
           />
         )}
