@@ -216,7 +216,14 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
 
         {isOpen && (
           <>
-            <PickupMap pickups={[]} route={stops} stats={stats} selectedId={null} onSelect={() => {}} />
+            <PickupMap
+              pickups={[]}
+              route={stops}
+              stats={stats}
+              controls={false}
+              selectedId={null}
+              onSelect={() => {}}
+            />
             <div className="routestops">{stops.map(renderStop)}</div>
             <div className="routestops routestops-tail">
               {!isActive && (

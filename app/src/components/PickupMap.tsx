@@ -92,6 +92,20 @@ function Fit({ focus, points }: { focus: Pickup | null; points: [number, number]
   return null;
 }
 
+/**
+ * Detail thresholds.
+ *
+ * At 15 you still see all eight zones at once, so eight name plates and six
+ * time pills land in a heap over East Village -- the overlay is legible but
+ * the labels are not. At 16 the viewport holds three or four zones, which is
+ * when a name has somewhere to sit.
+ *
+ * The coloured overlay is not gated at all: knowing which zones are short is
+ * useful at every zoom, and a filled shape never collides with anything.
+ */
+const NAME_ZOOM = 16;
+const TIME_ZOOM = 16;
+
 /* Three steps of coverage, the same scale the zone map uses. Ember (#C0491A),
    not --danger: red is reserved for destructive actions and is never a need
    level. */
@@ -160,7 +174,7 @@ function PinLayer({
             shortHour(o.pickup_from),
             o.id === selectedId,
             new Date(o.pickup_from).getTime() <= soonCutoff,
-            zoom >= 15,
+            zoom >= TIME_ZOOM,
           )}
           eventHandlers={{ click: () => onSelect(o.id) }}
         />
@@ -185,7 +199,7 @@ function useZoom(): number {
  *  a zoom does not re-render the tile layer with it. */
 function ZoneLayer({ stats }: { stats?: ZoneStats }) {
   const zoom = useZoom();
-  const named = zoom >= 15;
+  const named = zoom >= NAME_ZOOM;
 
   return (
     <>
@@ -240,6 +254,9 @@ interface Props {
   /** Coverage per zone, so the drop-offs are coloured by what they still
    *  need rather than being anonymous outlines. */
   stats?: ZoneStats;
+  /** Zoom buttons. On at full size, off on the 160px route previews, where
+   *  they would cover a quarter of the map to no purpose. */
+  controls?: boolean;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
@@ -248,6 +265,7 @@ export default function PickupMap({
   pickups,
   route = [],
   stats,
+  controls = true,
   selectedId,
   onSelect,
 }: Props) {
@@ -282,7 +300,7 @@ export default function PickupMap({
     <div className="pickupmap">
       <MapContainer
         bounds={downtownBounds()}
-        zoomControl={false}
+        zoomControl={controls}
         scrollWheelZoom={false}
         style={{ height: "100%", width: "100%", background: "var(--surface)" }}
       >

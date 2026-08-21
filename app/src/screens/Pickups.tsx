@@ -37,11 +37,21 @@ import EmptyState from "../components/EmptyState";
  */
 type When = "now" | "hour" | "soon" | "any";
 
+/* Terse because four chips plus the meal count have to hold one row on a
+   phone -- wrapped, they pushed the map down by a whole line. */
 const WHEN_LABEL: Record<When, string> = {
-  now: "Right now",
-  hour: "Next hour",
-  soon: "Next 2h",
-  any: "Any time",
+  now: "Now",
+  hour: "1 hr",
+  soon: "2 hr",
+  any: "All",
+};
+
+/* Spelled out where there is room for it: the empty state. */
+const WHEN_PHRASE: Record<When, string> = {
+  now: "open right now",
+  hour: "in the next hour",
+  soon: "in the next two hours",
+  any: "at all",
 };
 
 interface Props {
@@ -181,7 +191,7 @@ export default function Pickups({
         <div className="pickuplist">
           <EmptyState
             headline={
-              when === "any" ? "Nothing to collect yet." : `Nothing ${WHEN_LABEL[when].toLowerCase()}.`
+              when === "any" ? "Nothing to collect yet." : `Nothing ${WHEN_PHRASE[when]}.`
             }
             detail={
               when === "any"
