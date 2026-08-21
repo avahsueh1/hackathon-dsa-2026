@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Pickup, ZoneStats } from "../types";
 import { takePickup } from "../lib/store";
-import { suggestZones, prettyDistance } from "../lib/zones";
-import { activeRoute, assignToActive, useRoutes } from "../lib/routes";
+import { ZONES, suggestZones, prettyDistance } from "../lib/zones";
+import { activeRoute, assignToActive } from "../lib/routes";
 import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
@@ -71,7 +71,6 @@ export default function Pickups({
   onNeedName,
   onOpenRoute,
 }: Props) {
-  const routes = useRoutes();
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
   // Two steps on purpose. Tapping a ping is asking "what is this?", not
@@ -110,6 +109,21 @@ export default function Pickups({
   );
 
   const chosen = open.find((p) => p.id === selected) ?? null;
+
+  // Where the route in progress is heading. One zone reads as a destination;
+  // several is a count, because three names do not fit on one line.
+  const heading = useMemo(() => {
+    const names = Array.from(
+      new Set(
+        route
+          .map((p) => p.zone_id)
+          .filter(Boolean)
+          .map((id) => ZONES.zones.find((z) => z.id === id)?.name ?? id),
+      ),
+    ) as string[];
+    if (names.length === 0) return null;
+    return names.length === 1 ? names[0] : `${names.length} zones`;
+  }, [route]);
 
   // Closest-and-shortest first, recomputed for whichever pickup is selected.
   const suggestions = useMemo(
@@ -178,10 +192,12 @@ export default function Pickups({
 
       {route.length > 0 && !chosen && (
         <button type="button" className="routebar" onClick={onOpenRoute}>
-          <span className="ss-label">
-            ▸ {routes.routes.length > 1 ? `${routes.routes.length} routes` : activeRoute().label} ·{" "}
-            {route.length} {plural(route.length, "stop")} ·{" "}
-            {fmt(route.reduce((a, p) => a + p.quantity, 0))} meals
+          <span className="routebar-text">
+            <span className="ss-label">
+              ▸ {activeRoute().label} · {route.length} {plural(route.length, "stop")} ·{" "}
+              {fmt(route.reduce((a, p) => a + p.quantity, 0))} meals
+            </span>
+            {heading && <span className="routebar-to">Heading to {heading}</span>}
           </span>
           <span className="routebar-go">Open</span>
         </button>

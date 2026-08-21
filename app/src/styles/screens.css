@@ -671,6 +671,14 @@ button { font: inherit; color: inherit; }
   color: var(--mint-ink);
   text-align: left;
 }
+.routebar-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.routebar-to {
+  font: var(--t-caption);
+  font-size: 11px;
+  color: var(--mint-ink);
+  opacity: 0.85;
+  overflow-wrap: anywhere;
+}
 .routebar-go { font: var(--t-caption); text-decoration: underline; white-space: nowrap; }
 
 .pickupcard {

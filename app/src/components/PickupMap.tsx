@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -62,6 +62,7 @@ function pingIcon(label: string, selected: boolean, soon: boolean, withTime: boo
 
 function Fit({ focus, points }: { focus: Pickup | null; points: [number, number][] }) {
   const map = useMap();
+  const fitted = useRef(false);
 
   useEffect(() => {
     const ro = new ResizeObserver(() => map.invalidateSize());
@@ -70,39 +71,47 @@ function Fit({ focus, points }: { focus: Pickup | null; points: [number, number]
     return () => ro.disconnect();
   }, [map]);
 
-  // Zoom to a selected pin; otherwise frame everything there is to see.
-  // Without the second half the map stayed wherever the last selection left
-  // it, so clearing the selection showed one stop out of six.
   const key = points.map((p) => p.join()).join("|");
 
   useEffect(() => {
     if (focus && focus.lat != null && focus.lng != null) {
       map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { animate: true });
-    } else if (points.length > 0) {
-      // Capped one step below the label threshold on purpose: fitting to
-      // exactly 15 meant the overview always rendered every time pill and
-      // zone name, which is the pile-up this was meant to avoid.
+      return;
+    }
+
+    // Frame everything ONCE. Refitting whenever the points change looked
+    // harmless until you noticed it fires on every board refresh -- so a
+    // driver who had zoomed in got yanked back out a few seconds later, and
+    // the zoom buttons appeared not to work at all.
+    if (fitted.current) return;
+    fitted.current = true;
+
+    if (points.length > 0) {
+      // One step below the label threshold: fitting to exactly 15 meant the
+      // default view rendered every badge and pill.
       map.fitBounds(points, { padding: [40, 40], maxZoom: 14 });
     } else {
       map.fitBounds(downtownBounds(), { padding: [16, 16] });
     }
     // `key` stands in for `points`, which is a fresh array every render.
-  }, [map, focus, key]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [map, focus, key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }
 
 /**
- * Detail thresholds.
+ * Detail thresholds. Three tiers, because downtown's eight zones sit within
+ * about two kilometres of each other and everything collides at once.
  *
- * At 15 you still see all eight zones at once, so eight name plates and six
- * time pills land in a heap over East Village -- the overlay is legible but
- * the labels are not. At 16 the viewport holds three or four zones, which is
- * when a name has somewhere to sit.
+ *   overview  colour only -- which zones are short, no text at all
+ *   15        "ZONE 5" badges, once the viewport holds five or six zones
+ *   16        ...plus the cross-street, and the pickup times
  *
- * The coloured overlay is not gated at all: knowing which zones are short is
- * useful at every zoom, and a filled shape never collides with anything.
+ * The coloured overlay is never gated: knowing which zones are short is
+ * useful at every zoom, and a filled shape cannot collide with anything.
+ * Only the text waits.
  */
+const BADGE_ZOOM = 15;
 const NAME_ZOOM = 16;
 const TIME_ZOOM = 16;
 
@@ -115,16 +124,8 @@ function zoneTier(pct: number, covered: boolean) {
   return { line: "#C0491A", fill: "#C0491A", ink: "#FF9A73", op: 0.22 };
 }
 
-/**
- * The zone's number, and its cross-street once there is room for it.
- *
- * Downtown's eight zones sit within about two kilometres of each other, so at
- * the default zoom eight name plates land on top of one another and on top of
- * the pickup pings -- less readable than the faint outlines they replaced.
- * The number always shows; the name waits until you have zoomed in far enough
- * for it to have somewhere to go.
- */
 function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.DivIcon {
+  const w = withName ? 96 : 52;
   const plate = withName
     ? `<span style="
         margin-top:1px;padding:1px 5px;border-radius:4px;background:rgba(14,20,22,.72);
@@ -134,23 +135,90 @@ function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.D
     className: "zone-label",
     html: `<div style="
         display:flex;flex-direction:column;align-items:center;
-        width:${withName ? 96 : 20}px;text-align:center;pointer-events:none">
+        width:${w}px;text-align:center;pointer-events:none">
       <span style="
-        display:grid;place-items:center;width:18px;height:18px;border-radius:50%;
-        background:rgba(14,20,22,.8);color:${ink};
-        border:1px solid ${ink};font:700 10px/1 var(--font-ui)">${n}</span>
+        padding:2px 6px;border-radius:999px;white-space:nowrap;
+        background:rgba(14,20,22,.82);color:${ink};border:1px solid ${ink};
+        font:700 9px/1.2 var(--font-ui);letter-spacing:.06em">ZONE ${n}</span>
       ${plate}
     </div>`,
-    iconSize: [withName ? 96 : 20, withName ? 34 : 18],
-    iconAnchor: [withName ? 48 : 10, withName ? 17 : 9],
+    iconSize: [w, withName ? 36 : 18],
+    iconAnchor: [w / 2, withName ? 18 : 9],
   });
+}
+
+/** A stop already on the route: numbered, mint, joined by the run line. */
+function stopIcon(n: number): L.DivIcon {
+  return L.divIcon({
+    className: "ping-icon",
+    html: `<div style="
+        display:grid;place-items:center;width:26px;height:26px;border-radius:50%;
+        background:var(--mint-solid);color:var(--ink-on-solid);
+        font:700 12px/1 var(--font-ui);
+        border:2px solid var(--ink-on-solid);box-shadow:0 2px 6px rgba(0,0,0,.45)"
+      >${n}</div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 13],
+  });
+}
+
+/** Zoom, as state, so the labels can decide whether they fit. */
+function useZoom(): number {
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({
+    zoomend() {
+      setZoom(map.getZoom());
+    },
+  });
+  return zoom;
+}
+
+/** Everything that depends on how far in you are. Split into its own child so
+ *  a zoom does not re-render the tile layer with it. */
+function ZoneLayer({ stats }: { stats?: ZoneStats }) {
+  const zoom = useZoom();
+  const badged = zoom >= BADGE_ZOOM;
+  const named = zoom >= NAME_ZOOM;
+
+  return (
+    <>
+      {ZONES.zones.map((z, i) => {
+        const pct = stats ? coverage(stats, z) : 0;
+        const covered = stats ? isCovered(stats, z) : false;
+        const t = zoneTier(pct, covered);
+        return (
+          <Fragment key={z.id}>
+            <Polygon
+              positions={zoneRings(z)}
+              interactive={false}
+              pathOptions={{
+                color: t.line,
+                weight: 1,
+                opacity: 0.55,
+                fillColor: t.fill,
+                fillOpacity: t.op,
+              }}
+            />
+            {badged && (
+              <Marker
+                position={[z.centroid[1], z.centroid[0]]}
+                icon={zoneLabel(i + 1, corner(z.landmark.a, z.landmark.b), t.ink, named)}
+                interactive={false}
+              />
+            )}
+          </Fragment>
+        );
+      })}
+    </>
+  );
 }
 
 /**
  * The pickup pings. Their time pill follows the same rule as the zone names:
- * eight of them within two kilometres pile onto each other and onto the zone
- * numbers at the default zoom. The pin always shows, the time waits for room
- * -- except on the selected one, which you have asked about.
+ * six of them within two kilometres pile onto each other at the default zoom.
+ * The pin always shows, the time waits for room -- except on the selected
+ * one, which you have asked about.
  */
 function PinLayer({
   pins,
@@ -181,70 +249,6 @@ function PinLayer({
       ))}
     </>
   );
-}
-
-/** Zoom, as state, so the labels can decide whether they fit. */
-function useZoom(): number {
-  const map = useMap();
-  const [zoom, setZoom] = useState(map.getZoom());
-  useMapEvents({
-    zoomend() {
-      setZoom(map.getZoom());
-    },
-  });
-  return zoom;
-}
-
-/** Everything that depends on how far in you are. Split into its own child so
- *  a zoom does not re-render the tile layer with it. */
-function ZoneLayer({ stats }: { stats?: ZoneStats }) {
-  const zoom = useZoom();
-  const named = zoom >= NAME_ZOOM;
-
-  return (
-    <>
-      {ZONES.zones.map((z, i) => {
-        const pct = stats ? coverage(stats, z) : 0;
-        const covered = stats ? isCovered(stats, z) : false;
-        const t = zoneTier(pct, covered);
-        return (
-          <Fragment key={z.id}>
-            <Polygon
-              positions={zoneRings(z)}
-              interactive={false}
-              pathOptions={{
-                color: t.line,
-                weight: 1,
-                opacity: 0.55,
-                fillColor: t.fill,
-                fillOpacity: t.op,
-              }}
-            />
-            <Marker
-              position={[z.centroid[1], z.centroid[0]]}
-              icon={zoneLabel(i + 1, corner(z.landmark.a, z.landmark.b), t.ink, named)}
-              interactive={false}
-            />
-          </Fragment>
-        );
-      })}
-    </>
-  );
-}
-
-/** A stop already on the route: numbered, mint, joined by the run line. */
-function stopIcon(n: number): L.DivIcon {
-  return L.divIcon({
-    className: "ping-icon",
-    html: `<div style="
-        display:grid;place-items:center;width:26px;height:26px;border-radius:50%;
-        background:var(--mint-solid);color:var(--ink-on-solid);
-        font:700 12px/1 var(--font-ui);
-        border:2px solid var(--ink-on-solid);box-shadow:0 2px 6px rgba(0,0,0,.45)"
-      >${n}</div>`,
-    iconSize: [26, 26],
-    iconAnchor: [13, 13],
-  });
 }
 
 interface Props {
