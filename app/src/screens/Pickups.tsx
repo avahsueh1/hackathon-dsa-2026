@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Pickup, ZoneStats } from "../types";
 import { takePickup } from "../lib/store";
 import { suggestZones, prettyDistance } from "../lib/zones";
+import { activeRoute, assignToActive, useRoutes } from "../lib/routes";
 import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
@@ -42,6 +43,7 @@ export default function Pickups({
   onNeedName,
   onOpenRoute,
 }: Props) {
+  const routes = useRoutes();
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
   const [zoneId, setZoneId] = useState<string | null>(null);
@@ -95,6 +97,9 @@ export default function Pickups({
     setBusy(true);
     try {
       await takePickup(chosen.id, volunteer, zoneId);
+      // Joins whichever route is open, creating the first one on demand so a
+      // driver never has to start a route before they can take anything.
+      assignToActive(chosen.id);
       setSelected(null);
       onAccepted();
     } finally {
@@ -132,7 +137,8 @@ export default function Pickups({
       {route.length > 0 && !chosen && (
         <button type="button" className="routebar" onClick={onOpenRoute}>
           <span className="ss-label">
-            ▸ {route.length} {plural(route.length, "stop")} on your route ·{" "}
+            ▸ {routes.routes.length > 1 ? `${routes.routes.length} routes` : activeRoute().label} ·{" "}
+            {route.length} {plural(route.length, "stop")} ·{" "}
             {fmt(route.reduce((a, p) => a + p.quantity, 0))} meals
           </span>
           <span className="routebar-go">Open</span>
@@ -208,7 +214,7 @@ export default function Pickups({
             disabledReason={!zoneId ? "Pick where it goes first" : undefined}
             onClick={() => void take()}
           >
-            {busy ? "Adding…" : "Add to my route"}
+            {busy ? "Adding…" : `Add to ${activeRoute().label}`}
           </Button>
         </div>
       ) : (

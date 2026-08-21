@@ -833,3 +833,70 @@ button { font: inherit; color: inherit; }
 .runhead-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
 .runhead-date { font: var(--t-caption); color: var(--text-muted); white-space: nowrap; }
 .runhead-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* ============================================================== routes ===== */
+/* One card per trip: its own map, its own stops, its own total. */
+
+.routelist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  padding: var(--s-3) var(--gutter) var(--s-6);
+  min-width: 0;
+}
+
+.routetop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+
+.routecard {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  min-width: 0;
+}
+/* The one you are adding to. Blue, because this is the system telling you
+   where the next pickup will land -- not a status of the food. */
+.routecard.active { border-color: var(--blue); }
+
+.routehead {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-3) var(--card-pad);
+  min-width: 0;
+}
+.routehead-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.routelabel {
+  font: var(--t-title);
+  letter-spacing: -0.01em;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+
+/* min-height on .pickupmap outranks a plain height, so both move. */
+.routecard .pickupmap { flex: none; height: 160px; min-height: 160px; }
+
+.routestops {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--card-pad) var(--card-pad);
+}
+/* Nested inside a route card, the stop is a row not a card of its own. */
+.routestops .stopcard { border-color: var(--border); background: var(--surface-sunken); }
