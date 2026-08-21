@@ -1,0 +1,472 @@
+/* ============================================ base, from the design system === */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font: var(--t-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* numbers line up like a receipt */
+.ss-num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+/* eyebrows, table headers, status pills */
+.ss-label {
+  font: var(--t-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+:focus-visible {
+  outline: var(--outline-width-strong) solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+button { font: inherit; color: inherit; }
+
+/* ============================================================== the rail === */
+/* Tonight's zones hung on a wire like kitchen tickets. */
+
+.rail {
+  flex: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: var(--s-4);
+  min-width: 0;
+}
+
+.rail-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--s-4);
+}
+.rail-eyebrow { color: var(--text-secondary); }
+.rail-num {
+  font-size: var(--t-hero-size);
+  line-height: 1;
+  font-weight: var(--t-hero-weight);
+  letter-spacing: var(--tracking-hero);
+  color: var(--text);
+}
+.rail-caption { font: var(--t-body); color: var(--text-secondary); white-space: nowrap; }
+.rail-time { margin-left: auto; font: var(--t-body); color: var(--text-secondary); }
+
+.rail-wire { position: relative; padding-top: var(--s-3); min-width: 0; }
+.rail-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border-strong);
+  border-radius: var(--r-full);
+}
+
+/* Fixed ticket width, so the track never sizes to its content -- that, plus
+   min-width:0 on every ancestor, is what stops the rail widening the frame. */
+.rail-tickets {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 116px;
+  gap: var(--s-2);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: var(--s-2);
+}
+
+.ticket {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--s-2) var(--s-1);
+  cursor: pointer;
+  text-align: left;
+  scroll-snap-align: start;
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: transparent;
+  border: 1px solid var(--amber-solid);
+  border-top-width: 0;
+  color: var(--amber-ink);
+  transition:
+    background var(--dur-flip) var(--ease),
+    border-color var(--dur-flip) var(--ease),
+    color var(--dur-flip) var(--ease);
+}
+.ticket.covered {
+  background: var(--mint-tint);
+  border-color: var(--mint-solid);
+  color: var(--mint-ink);
+}
+.ticket.on { outline: 2px solid var(--blue); outline-offset: 2px; }
+.ticket-n {
+  font: var(--t-label);
+  letter-spacing: var(--tracking-label);
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+}
+.ticket-place {
+  font-size: 11px;
+  line-height: 1.3;
+  color: var(--text-secondary);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- the count row under the hero --- */
+.countrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: 0 var(--gutter) var(--s-3);
+  min-width: 0;
+}
+.countrow-l { color: var(--text-muted); }
+.countrow-r { font: var(--t-caption); color: var(--mint-ink); white-space: nowrap; }
+
+/* ========================================================== the zone card === */
+
+.zcard {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--card-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+  min-width: 0;
+}
+/* Both children are white-space:nowrap, so neither can shrink -- without wrap
+   the wider pill silently pushes the figure outside the card. */
+.zcard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
+}
+.zcard-need { font: var(--t-caption); color: var(--text-muted); white-space: nowrap; }
+.zcard-body { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.zcard-title {
+  font: var(--t-title);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.zcard-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+.zcard-meta { font: var(--t-caption); color: var(--mint-ink); overflow-wrap: anywhere; }
+.zcard-meta.open { color: var(--text-secondary); }
+.reg-eyebrow { color: var(--text-muted); }
+
+.zprog { display: flex; flex-direction: column; gap: var(--s-2); }
+.zprog-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.zprog-pct { color: var(--mint-ink); }
+.zprog-pct.open { color: var(--amber-ink); }
+.ztrack {
+  height: 8px;
+  border-radius: var(--r-full);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.ztrack span {
+  display: block;
+  height: 100%;
+  background: var(--mint-solid);
+  transition: width var(--dur-flip) var(--ease), background var(--dur-flip) var(--ease);
+}
+.ztrack span.open { background: var(--amber-solid); }
+
+/* ================================================================= map ===== */
+
+.mapscreen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.mapwrap { display: flex; flex-direction: column; flex: 1; min-height: 260px; background: var(--bg); }
+.mapbox { flex: 1; min-height: 0; }
+
+/* Field mode is dark; OSM tiles are not. Desaturating them keeps amber and
+   mint the only saturated things on the screen. Straight from the design's
+   own app.css. */
+[data-mode="field"] .leaflet-tile-pane {
+  filter: grayscale(1) brightness(0.62) contrast(1.05);
+}
+.leaflet-container { background: var(--surface); font: var(--t-body); }
+.zone-badge { background: none; border: 0; }
+.leaflet-control-zoom a {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.leaflet-control-attribution {
+  background: rgba(0, 0, 0, 0.55) !important;
+  color: var(--text-muted) !important;
+  font-size: 9px !important;
+}
+.leaflet-control-attribution a { color: var(--text-secondary) !important; }
+
+.maplegend {
+  flex: none;
+  display: flex;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-4);
+  border-top: 1px solid var(--border);
+  font: var(--t-caption);
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.mapsel {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4) var(--gutter);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  min-width: 0;
+}
+.mapsel-text { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; min-width: 0; }
+.mapsel-name { font: var(--t-body-lg); overflow-wrap: anywhere; }
+.mapsel-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* =============================================================== sheet ===== */
+
+.sheet-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* Absolute, not fixed: the app lives in a 9:16 frame and a fixed sheet would
+   escape it and cover the whole browser window. */
+.sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  box-shadow: var(--shadow-sheet);
+  animation: ss-sheet-up var(--dur-sheet) var(--ease);
+  transition: height var(--dur-sheet) var(--ease);
+}
+.sheet-grabhit {
+  flex: none;
+  background: none;
+  border: 0;
+  padding: var(--s-3) 0 var(--s-2);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.sheet-grab { width: 40px; height: 4px; border-radius: var(--r-full); background: var(--border-strong); }
+.sheet-close {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  width: var(--tap-min);
+  height: var(--tap-min);
+  background: none;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font: var(--t-body-lg);
+}
+.sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 var(--gutter) calc(env(safe-area-inset-bottom, 0px) + var(--s-5));
+}
+
+.claimflow { display: flex; flex-direction: column; gap: var(--s-5); min-width: 0; }
+.claimhead { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; min-width: 0; }
+.claimtitle { font: var(--t-title); letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.claimsub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* =============================================================== drops ===== */
+
+.dropstats { display: flex; gap: var(--s-6); padding: 0 var(--gutter) var(--s-4); flex-wrap: wrap; }
+.dropstat { font: var(--t-caption); color: var(--text-secondary); }
+.dropstat.muted { color: var(--text-muted); }
+.dropexport { padding: 0 var(--gutter) var(--s-4); }
+.dropdone { margin: var(--s-3) 0 0; font: var(--t-caption); color: var(--mint-ink); }
+.dropempty { padding: 0 var(--gutter) var(--s-5); }
+
+.droplist { border-top: 1px solid var(--border); padding-bottom: var(--s-6); }
+.droprow {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding: var(--s-4) var(--gutter);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.droprow.off { opacity: 0.55; }
+.droprow-top { display: flex; justify-content: space-between; gap: var(--s-3); min-width: 0; }
+.drop-zone { font: var(--t-body-lg); overflow-wrap: anywhere; }
+.drop-meals { color: var(--mint-ink); white-space: nowrap; }
+.drop-meta { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+.drop-sub { font: var(--t-caption); color: var(--text-muted); }
+.drop-cancelled { font: var(--t-caption); color: var(--text-muted); }
+.droplist .fineprint { padding: var(--s-4) var(--gutter) 0; }
+
+/* ============================================================= landing ===== */
+
+.landing {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: var(--bg);
+}
+
+.lnav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: calc(env(safe-area-inset-top, 0px) + var(--s-3)) var(--gutter) var(--s-3);
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.lmark { font: 700 17px/1 var(--font-ui); letter-spacing: -0.01em; }
+.larrow { color: var(--amber-solid); }
+
+.lhero { display: flex; flex-direction: column; gap: var(--s-4); padding: var(--s-5) var(--gutter) var(--s-6); }
+.lhero h1 {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 30px;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+.llede { margin: 0; font: var(--t-body-lg); color: var(--text-secondary); text-wrap: pretty; }
+
+.lpreview { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.lrow {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+.lchip {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--amber-solid);
+  transition: background var(--dur-flip) var(--ease);
+}
+.lrow.covered .lchip { background: var(--mint-solid); }
+.lname {
+  flex: 1;
+  min-width: 0;
+  font: var(--t-body);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lmeta { font: var(--t-caption); font-family: var(--font-num); color: var(--text-muted); white-space: nowrap; }
+.lrow.covered .lmeta { color: var(--mint-ink); }
+.lfoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.lfoot .fineprint { margin: 0; }
+
+.lcta { display: flex; flex-direction: column; gap: var(--s-2); }
+
+.lsection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-6) var(--gutter);
+  border-top: 1px solid var(--border);
+}
+.lh2 { margin: 0; font: var(--t-title); font-size: 22px; letter-spacing: -0.01em; }
+.lbody { margin: 0; font: var(--t-body); color: var(--text-secondary); text-wrap: pretty; }
+
+.lsteps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--s-3); }
+.lstep {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--card-pad);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.lstepnum { font-family: var(--font-num); font-size: 26px; line-height: 1; font-weight: 700; color: var(--amber-solid); }
+.lsteptitle { font: var(--t-body-lg); font-weight: 650; }
+.lstepbody { font: var(--t-caption); color: var(--text-secondary); text-wrap: pretty; }
+
+.lfooter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-5) var(--gutter) var(--s-6);
+  border-top: 1px solid var(--border);
+  font: var(--t-caption);
+  color: var(--text-muted);
+}
+
+/* The landing's status pill is the design system's, not a local one. */
+.statuspill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-3);
+  border-radius: var(--r-full);
+  font: var(--t-label);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  white-space: nowrap;
+  background: transparent;
+  color: var(--amber-ink);
+  border: 1px solid var(--amber-solid);
+}
+.statuspill.covered {
+  background: var(--mint-tint);
+  color: var(--mint-ink);
+  border-color: var(--mint-solid);
+}

@@ -1,0 +1,246 @@
+/* ============================================================ app shell ====
+   The app is a phone. Always.
+
+   The single-file build had a desktop layout with a `max-width: 860px` mobile
+   override, and the two disagreed -- an unscoped desktop rule that happened to
+   land later in the sheet won on source order, and a flex item's default
+   `min-width: auto` let a sideways-scrolling rail size its own ancestors to
+   921px inside a 390px viewport.
+
+   Both bugs came from having two layouts. So there is now one. The app renders
+   into a 9:16 portrait frame at every screen size: on a phone it fills the
+   device edge to edge (`100dvh` plus the safe-area insets, exactly as the
+   design system's app.css asks), and on a laptop it sits centred on a dim
+   backdrop instead of stretching into a desktop layout that nobody designed.
+   ========================================================================== */
+
+html, body, #root { height: 100%; margin: 0; }
+
+body {
+  background: var(--surface-sunken);
+  overscroll-behavior: none;
+}
+
+/* The browser's own [hidden] rule is display:none, but ANY author rule with a
+   display value beats it. Bitten by this before -- keep the !important. */
+[hidden] { display: none !important; }
+
+#root { display: grid; place-items: center; }
+
+/* --- the phone ---------------------------------------------------------- */
+
+.device {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+
+  aspect-ratio: 9 / 16;
+  height: min(100dvh - 2 * var(--s-5), 900px);
+  width: auto;
+  max-width: calc(100vw - 2 * var(--s-5));
+
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: 28px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+}
+
+/* On an actual phone the frame is the screen: edge to edge, no rounding, and
+   the safe-area insets come back. */
+@media (max-width: 560px) {
+  #root { place-items: stretch; }
+  .device {
+    aspect-ratio: auto;
+    height: 100dvh;
+    width: 100%;
+    max-width: none;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* --- header ------------------------------------------------------------- */
+
+.appheader {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding: calc(var(--s-4) + env(safe-area-inset-top)) var(--gutter) var(--s-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.appheader-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.appheader-eyebrow { color: var(--text-muted); white-space: nowrap; }
+.appheader-title {
+  font: var(--t-title);
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- the one scrolling column ------------------------------------------- */
+
+.app-main {
+  flex: 1;
+  min-height: 0;   /* without this the column never scrolls */
+  min-width: 0;    /* without this its children size the frame */
+  overflow: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- bottom tab bar ------------------------------------------------------ */
+
+.tabbar {
+  flex: none;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.tabbar button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  min-width: 0;
+  min-height: var(--tap-primary);
+  padding: var(--s-2) 0;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-top: 2px solid transparent;
+  margin-top: -1px;
+  color: var(--text-muted);
+}
+.tabbar button[aria-selected="true"] {
+  border-top-color: var(--amber-solid);
+  color: var(--amber-ink);
+}
+.tabglyph { font-size: 15px; line-height: 1; }
+
+/* --- hero --------------------------------------------------------------- */
+
+.hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--gutter);
+  min-width: 0;
+}
+.hero-text { display: flex; flex-direction: column; gap: var(--s-1); min-width: 0; }
+.hero-label { color: var(--text-secondary); }
+.hero-line { display: flex; align-items: baseline; gap: var(--s-2); flex-wrap: wrap; }
+.hero-value {
+  font-size: var(--t-hero-size);
+  line-height: 1;
+  font-weight: 700;
+  letter-spacing: var(--tracking-hero);
+}
+.hero-unit { font: var(--t-body); color: var(--text-secondary); }
+
+/* --- shared inputs ------------------------------------------------------- */
+
+.finput {
+  min-height: var(--tap-stepper);
+  padding: 0 var(--s-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 16px;   /* below 16px iOS zooms the whole frame */
+  font-family: var(--font-ui);
+  min-width: 0;
+  width: 100%;
+}
+
+.pickgroup { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.pick-label { color: var(--text-secondary); }
+.pick-help { font: var(--t-caption); color: var(--text-muted); }
+
+.pickrow { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.pick {
+  min-height: var(--tap-min);
+  padding: 0 var(--s-4);
+  cursor: pointer;
+  border-radius: var(--r-full);
+  font: var(--t-body);
+  white-space: nowrap;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-strong);
+}
+.pick.on {
+  background: var(--amber-tint);
+  color: var(--amber-ink);
+  border-color: var(--amber-solid);
+}
+
+.errline { margin: 0; font: var(--t-caption); color: var(--danger); }
+
+.fineprint {
+  margin: var(--s-2) 0 0;
+  font: var(--t-caption);
+  color: var(--text-muted);
+  text-wrap: pretty;
+}
+
+.cardlist {
+  display: flex;
+  flex-direction: column;
+  gap: var(--card-gap);
+  padding: 0 var(--gutter) var(--s-6);
+  min-width: 0;
+}
+
+/* --- toast -------------------------------------------------------------- */
+
+.toastwrap {
+  position: absolute;
+  left: var(--gutter);
+  right: var(--gutter);
+  bottom: calc(var(--tap-primary) + var(--s-4));
+  z-index: 60;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+}
+.toast {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-toast);
+  padding: var(--s-3) var(--s-4);
+  font: var(--t-body);
+  color: var(--text);
+  animation: ss-toast-in var(--dur-toast-in) var(--ease);
+}
+
+/* --- empty state --------------------------------------------------------- */
+
+.emptystate {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  align-items: flex-start;
+}
+.emptystate-h { font: var(--t-title); color: var(--text); }
+.emptystate-d { font: var(--t-body); color: var(--text-secondary); max-width: 46ch; }

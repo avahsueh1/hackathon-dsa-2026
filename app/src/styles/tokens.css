@@ -1,0 +1,224 @@
+/* Design tokens, carried over verbatim from the single-file build.
+   Amber = nobody is going yet. Mint = someone is. Blue = the system talking.
+   Red = destructive. Everything else is a shade of the background.
+   Hexes and contrast ratios are measured; do not substitute "close enough". */
+
+:root {
+  /* meaning - identical in both modes */
+  --amber-solid: #F0A315;
+  --mint-solid: #2FB37D;
+  --mint-strong: #17845C;   /* use when white text sits on green */
+  --highest: #C0491A;       /* ring on the highest-need open zone */
+  --ink-on-solid: #0E1416;  /* amber & mint solids ALWAYS take dark ink */
+}
+
+/* Field mode - dark, the default. 9pm-1am, in a car, phone at arm's length. */
+:root, [data-mode="field"] {
+  --bg: #0E1416;
+  --surface: #161E21;
+  --surface-raised: #1D272A;
+  --surface-sunken: #0A1012;
+  --border: #2A3639;
+  --border-strong: #3C4B4F;
+  --text: #F0F3F2;            /* 16.6:1 */
+  --text-secondary: #A8B5B7;  /*  8.8:1 */
+  --text-muted: #7B8A8D;      /*  4.7:1 */
+  --amber-ink: #FFC24D;       /* 10.5:1 */
+  --amber-tint: #3A2A0A;
+  --mint-ink: #5FD3A2;        /*  9.1:1 */
+  --mint-tint: #0F2A21;
+  --blue: #5FA3F0;            /*  7.1:1 */
+  --danger: #E5534B;          /*  4.6:1 */
+}
+
+/* Desk mode - light. Admin, tables, the SB 1383 log. Cool paper, not cream. */
+[data-mode="desk"] {
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #E7EBE9;
+  --border: #D3DAD8;
+  --border-strong: #B4BEBB;
+  --text: #0E1416;            /* 17.0:1 */
+  --text-secondary: #4C5A5C;  /*  6.6:1 */
+  --text-muted: #5E6B6D;      /*  5.5:1 */
+  --amber-ink: #8A5A00;       /*  5.9:1 */
+  --amber-tint: #FDECC8;
+  --mint-ink: #12694A;        /*  6.7:1 */
+  --mint-tint: #D8F0E3;
+  --blue: #256ABF;            /*  5.4:1 */
+  --danger: #B3261E;          /*  6.5:1 */
+}
+
+/* semantic aliases - use these in components */
+:root, [data-mode="field"], [data-mode="desk"] {
+  --surface-card: var(--surface);
+  --surface-sheet: var(--surface);
+  --surface-table-header: var(--surface-sunken);
+  --text-body: var(--text);
+  --text-label: var(--text-secondary);
+  --text-helper: var(--text-muted);
+  --hairline: var(--border);
+  --focus-ring: var(--blue);
+  --status-open-fill: var(--amber-solid);
+  --status-open-ink: var(--amber-ink);
+  --status-open-tint: var(--amber-tint);
+  --status-covered-fill: var(--mint-solid);
+  --status-covered-ink: var(--mint-ink);
+  --status-covered-tint: var(--mint-tint);
+}
+
+/* TYPE
+   One family, five sizes, and numbers in a monospace so they line up.
+   System stack on purpose: zero network requests, works offline at the venue.
+   NEVER load a font from a CDN. There are no @font-face rules in this system -
+   that is a deliberate decision, not an omission. */
+
+:root {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Source doc lists "Cascadia Mono" and "Roboto Mono" in this stack. Both are
+     webfont-flagged with no file to bundle, and the doc forbids loading fonts at
+     all (§5), so they are omitted: ui-monospace already resolves to the right
+     system mono on Windows and Android. */
+  --font-num: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* shorthand tokens - use as `font: var(--t-title)` */
+  --t-hero: 700 44px/46px var(--font-ui);
+  --t-title: 650 26px/32px var(--font-ui);
+  --t-body-lg: 500 18px/26px var(--font-ui);
+  --t-body: 400 16px/24px var(--font-ui);
+  --t-label: 600 13px/16px var(--font-ui);
+  --t-caption: 400 13px/18px var(--font-ui);
+
+  /* tracking that travels with the size */
+  --tracking-hero: -0.02em;
+  --tracking-label: 0.06em;
+
+  /* individual values, when the shorthand will not do */
+  --t-hero-size: 44px;   --t-hero-line: 46px;   --t-hero-weight: 700;
+  --t-title-size: 26px;  --t-title-line: 32px;  --t-title-weight: 650;
+  --t-body-lg-size: 18px;--t-body-lg-line: 26px;--t-body-lg-weight: 500;
+  --t-body-size: 16px;   --t-body-line: 24px;   --t-body-weight: 400;
+  --t-label-size: 13px;  --t-label-line: 16px;  --t-label-weight: 600;
+  --t-caption-size: 13px;--t-caption-line: 18px;--t-caption-weight: 400;
+}
+
+/* SPACE - everything is a multiple of 4.
+   Card padding --s-4 on mobile, --s-5 on desktop. Gap between cards --s-3.
+   Screen gutter --s-4. Section break --s-6. */
+
+:root {
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  --gutter: var(--s-4);
+  --card-pad: var(--s-4);
+  --card-pad-desktop: var(--s-5);
+  --card-gap: var(--s-3);
+  --section-break: var(--s-6);
+
+  /* targets: nothing interactive below 44px, primary actions 56px */
+  --tap-min: 44px;
+  --tap-primary: 56px;
+  --tap-stepper: 48px;
+}
+
+/* SHAPE + DEPTH
+   Corners are soft but not round. Depth is done with borders, not shadows.
+   Only two shadows exist in the entire system. No shadow on cards, ever. */
+
+:root {
+  --r-sm: 8px;    /* inputs, pills, small chips */
+  --r-md: 12px;   /* cards, buttons */
+  --r-lg: 18px;   /* sheets, modals */
+  --r-full: 999px;/* status pills, avatars */
+
+  --hairline-width: 1px;
+  --outline-width: 1.5px;   /* open zone border */
+  --outline-width-strong: 2px; /* covered / high-need zone border, focus ring */
+
+  --shadow-sheet: 0 -8px 24px rgba(0,0,0,.28);
+  --shadow-toast: 0 4px 16px rgba(0,0,0,.24);
+}
+
+/* MOTION - three animations exist. Everything else is instant. */
+
+:root {
+  --ease: cubic-bezier(.2,.8,.2,1); /* @kind other */
+  --dur-flip: 280ms; /* @kind other */      /* zone amber -> mint, the money shot */
+  --dur-sheet: 220ms; /* @kind other */     /* bottom sheet slide + snap */
+  --dur-toast-in: 160ms; /* @kind other */
+  --dur-toast-out: 240ms; /* @kind other */
+  --press-scale: 0.98; /* @kind other */
+}
+
+@keyframes ss-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47,179,125,.55); }
+  100% { box-shadow: 0 0 0 14px rgba(47,179,125,0); }
+}
+@keyframes ss-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ss-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ------------------------------------------------------------------
+   Bridge: this app was built against an earlier set of token names.
+   Rather than rewrite ~1,000 CSS declarations, the old names now point
+   at the new system. One block changes the entire look, and every rule
+   written before today keeps working.
+   ------------------------------------------------------------------ */
+:root, [data-mode] {
+  --surface-raised: var(--surface);
+  --text-primary: var(--text);
+  --border-subtle: var(--border);
+  --sans: var(--font-ui);
+  --mono: var(--font-num);
+
+  /* --step-500/600 were only ever UI accents; the choropleth uses the
+     150-700 steps, which stay a sequential ramp. */
+  --step-500: var(--blue);
+  --step-600: var(--blue);
+}
+
+/* The page background is --bg in the new system, --surface in the old. */
+html, body { background: var(--bg); }
+
+/* Choropleth ramp. Kept separate from the semantic palette because a
+   sequential scale has to stay sequential, and re-stepped for the dark
+   field surface the same way the old dark mode was. */
+:root, [data-mode="field"] {
+  --step-100:#0f2437; --step-150:#17324f; --step-200:#1a3b60;
+  --step-250:#1d4472; --step-300:#215089; --step-350:#255a96;
+  --step-400:#2a67ab; --step-450:#2f74bd; --step-500-map:#3b82cf;
+  --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
+  --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
+  --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
+  --map-street:#0a1012; --map-parcel:#182226; --map-parcel-empty:#131b1e;
+  --map-label:#6f7d80; --map-label-major:#94a2a5; --map-area-label:#5c686b;
+  --missing-fill:#232d30;
+}
+[data-mode="desk"] {
+  --step-100:#cde2fb; --step-150:#b7d3f6; --step-200:#9ec5f4;
+  --step-250:#86b6ef; --step-300:#6da7ec; --step-350:#5598e7;
+  --step-400:#3987e5; --step-450:#2a78d6; --step-550:#1c5cab;
+  --step-650:#104281; --step-700:#0d366b;
+  --heat-100:#ffffc4; --heat-200:#fee699; --heat-300:#fec44f;
+  --heat-400:#fe9929; --heat-500:#f0632b; --heat-600:#d7301f; --heat-700:#99000d;
+  --map-street:#e3e0d8; --map-parcel:#f7f6f2; --map-parcel-empty:#efede7;
+  --map-label:#8c8880; --map-label-major:#6e6a62; --map-area-label:#a8a49a;
+  --missing-fill:#d8d5cd;
+}
