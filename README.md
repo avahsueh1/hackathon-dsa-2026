@@ -80,6 +80,30 @@ One gotcha: the stylesheet is global and single-file. A class name collision is
 silent — `.bar` was already the map controls row, and reusing it collapsed the
 comparison bars to zero width. Prefix new classes.
 
+## Working with the backend repo
+
+The backend lives in a **separate repo**:
+<https://github.com/siapatodia8/dsa-hackathon-2026>. The two stay independent —
+separate pipelines, separate histories, neither team blocked on the other.
+
+Their zone need model is the authoritative one. It works from the block-level
+panel directly and carries the **311 'Get It Done' encampment signal**, which is
+the live input this repo never had. Taking an update is one command:
+
+```bash
+python3 scripts/sync_backend.py     # their data/derived/ -> data/backend/
+python3 scripts/rebuild_all.py      # rebuild the app on it
+```
+
+The synced files are committed here too, so this repo still builds with no
+network. The sync **refuses to write a model that has lost a column the app
+reads** — a successful sync that quietly produces a plausible map with wrong
+numbers is the worst outcome available, so it stops and names the column.
+
+[`docs/MERGE_PLAN.md`](docs/MERGE_PLAN.md) records what each side brings, the
+decisions taken, and the one blocker: their `claims` table needs `drop_window`
+and `food_description` before the SB 1383 export can be honest.
+
 ## Connecting a backend
 
 Claims are the only dynamic thing in the app, and every read and write goes

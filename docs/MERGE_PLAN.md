@@ -39,8 +39,7 @@ the app now shows its own provenance —
 
 > East Village South · 379 from 12 street counts · **+13 from 1,444 recent 311 reports**
 
-To sync, copy their `data/derived/` into `data/backend/` and run
-`python3 scripts/rebuild_all.py`.
+To take an update from them, see "Decided: two repos, one sync command" below.
 
 ## Decision 2 — where zones live
 
@@ -142,24 +141,55 @@ Realtime enabled on that table — which is exactly what this needs.
    themselves in a comment, and it is the right call for a demo. Worth saying
    out loud in the pitch before a judge asks, alongside the privacy framing.
 
-## Suggested branch layout
+## Decided: two repos, one sync command
 
-Merge into a **third branch**, not into either `main`:
+The repos stay **independent** — separate pipelines, separate histories,
+neither team blocked on the other. The one seam between them is their zone
+model, and taking an update is a single command:
+
+```bash
+python3 scripts/sync_backend.py     # pull their data/derived/ into data/backend/
+python3 scripts/rebuild_all.py      # rebuild the app on it
+```
+
+`--dry-run` shows what would change first, and `--from ../dsa-hackathon-2026`
+reads a local clone instead of GitHub if you are offline or they have not
+pushed yet.
+
+The synced files are **committed here too**, so this repo builds with no
+network. The sync is how you take their updates; it is not a build dependency.
+
+### It refuses to sync a model that changed shape
+
+The dangerous failure is not a broken sync — it is a *successful* one that
+quietly produces a plausible map with wrong numbers on it. So the script
+checks the columns `build_zones.py` actually reads and stops before writing:
 
 ```
-frontend/heatmap  ──┐
-                     ├──>  integration
-backend/main      ──┘
+STOP: their zone model no longer has column(s) the app reads:
+  need_tier
+
+Nothing written.
 ```
 
-Nothing in this repo has been pushed since the plan was written. The frontend
-side of the work is committed locally on `heatmap` and ready to move.
+Verified by renaming `need_tier` in a fake copy of their repo: it stopped,
+named the column, exited non-zero, and left `data/backend/` untouched.
 
-## What still needs a decision
+It also warns if the zones stop covering all 382 blocks.
 
-- **One repo or two?** Two repos with a synced `data/backend/` works today and
-  keeps the pipelines independent. One repo is tidier for judging. Either is
-  fine; pick before merging, not during.
-- **Who owns `zones.json`** once merged — their pipeline should generate it
-  directly and this repo's `build_zones.py` becomes a thin adapter, or drops
-  out entirely.
+### Diffs on every sync
+
+```
+  changes:
+    ~ east_village_south       392.0 -> 401.5 (+9.5)
+```
+
+So a shifting need score is something you notice, rather than something that
+silently changes what the app tells a driver.
+
+## Still open
+
+- **Who owns `zones.json`** long term. Right now their pipeline produces
+  `zone_need.csv` and this repo adapts it. If they would rather emit the app's
+  format directly, `build_zones.py` collapses to almost nothing.
+- **The two claim columns** above need adding before the adapter can be wired.
