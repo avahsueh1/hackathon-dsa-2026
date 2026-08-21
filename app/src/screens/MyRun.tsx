@@ -40,6 +40,9 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
   // One open at a time. On a phone, three expanded routes is three maps and a
   // lot of scrolling to find the stop you are standing outside.
   const [open, setOpen] = useState<string | null>(null);
+  // Cancelling hands food back to the feed, so it asks once rather than
+  // firing on the first tap.
+  const [confirming, setConfirming] = useState<string | null>(null);
 
   const mine = useMemo(
     () =>
@@ -198,6 +201,11 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
               {isOpen ? "▾" : "▸"}
             </span>
           </span>
+          {/* Who is actually on this route. Collapsed, "2 stops" does not tell
+              you whether the one you are outside is on it. */}
+          <span className="routestopnames">
+            {stops.map((p) => p.restaurant_name).join(" → ")}
+          </span>
           {isOpen && (
             <span className="runhead-sub">
               Collect {windowLabel(stops[0].pickup_from, lastTo)} · dropping at{" "}
@@ -208,15 +216,48 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
 
         {isOpen && (
           <>
-            <PickupMap pickups={[]} route={stops} selectedId={null} onSelect={() => {}} />
+            <PickupMap pickups={[]} route={stops} stats={stats} selectedId={null} onSelect={() => {}} />
             <div className="routestops">{stops.map(renderStop)}</div>
-            {!isActive && (
-              <div className="routestops routestops-tail">
+            <div className="routestops routestops-tail">
+              {!isActive && (
                 <Button variant="quiet" size="md" fullWidth onClick={() => setActive(id)}>
                   Add new stops to {label}
                 </Button>
-              </div>
-            )}
+              )}
+
+              {confirming === id ? (
+                <div className="stopactions">
+                  <Button variant="quiet" size="md" onClick={() => setConfirming(null)}>
+                    Keep it
+                  </Button>
+                  <Button
+                    variant="danger"
+                    size="md"
+                    disabled={busy === id}
+                    onClick={async () => {
+                      setBusy(id);
+                      try {
+                        // Every stop goes back on the board for someone else,
+                        // and the zones stop counting food that is not coming.
+                        for (const p of stops) await releasePickup(p.id);
+                        if (id !== "loose") forgetRoute(id);
+                        setConfirming(null);
+                      } finally {
+                        setBusy(null);
+                      }
+                    }}
+                  >
+                    {busy === id
+                      ? "Cancelling…"
+                      : `Hand back ${stops.length} ${plural(stops.length, "stop")}`}
+                  </Button>
+                </div>
+              ) : (
+                <Button variant="danger" size="md" fullWidth onClick={() => setConfirming(id)}>
+                  Cancel {label}
+                </Button>
+              )}
+            </div>
           </>
         )}
       </section>

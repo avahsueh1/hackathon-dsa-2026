@@ -653,6 +653,7 @@ button { font: inherit; color: inherit; }
 .pickupmap { flex: 1; min-height: 200px; }
 .pickupmap .leaflet-container { background: var(--surface); }
 .ping-icon { background: none; border: 0; }
+.zone-label { background: none; border: 0; }
 
 /* Back to the route from the pickups map, without hunting for the tab. */
 .routebar {
@@ -898,6 +899,20 @@ button { font: inherit; color: inherit; }
   letter-spacing: -0.01em;
 }
 .routechev { color: var(--text-muted); font-size: 12px; }
+
+/* The stops, small, on the collapsed card. Two lines at most -- past that it
+   is a list, and the list is what opening the card is for. */
+.routestopnames {
+  font: var(--t-caption);
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
 .routehead-top {
   display: flex;
   align-items: baseline;
@@ -927,6 +942,7 @@ button { font: inherit; color: inherit; }
 /* Nested inside a route card, the stop is a row not a card of its own. */
 .routestops .stopcard { border-color: var(--border); background: var(--surface-sunken); }
 .routestops-tail { padding-top: 0; }
+.routestops-tail .stopactions .btn { flex: 1; min-width: 0; }
 
 /* Back + confirm inside the pickup card. The confirm is the wider of the two:
    going back is a correction, adding the stop is the point. */

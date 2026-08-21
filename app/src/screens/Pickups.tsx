@@ -135,6 +135,7 @@ export default function Pickups({
       <PickupMap
         pickups={open}
         route={route}
+        stats={stats}
         selectedId={selected}
         onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
       />

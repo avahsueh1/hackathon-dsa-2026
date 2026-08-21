@@ -1,8 +1,17 @@
-import { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Polygon, Polyline, useMap } from "react-leaflet";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polygon,
+  Polyline,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import L from "leaflet";
-import type { Pickup } from "../types";
-import { ZONES, downtownBounds, zoneRings } from "../lib/zones";
+import type { Pickup, ZoneStats } from "../types";
+import { ZONES, coverage, downtownBounds, isCovered, zoneRings } from "../lib/zones";
+import { corner } from "../lib/streets";
 import { shortHour } from "../lib/food";
 
 /**
@@ -76,6 +85,95 @@ function Fit({ focus, points }: { focus: Pickup | null; points: [number, number]
   return null;
 }
 
+/* Three steps of coverage, the same scale the zone map uses. Ember (#C0491A),
+   not --danger: red is reserved for destructive actions and is never a need
+   level. */
+function zoneTier(pct: number, covered: boolean) {
+  if (covered) return { line: "#2FB37D", fill: "#2FB37D", ink: "#5FD3A2", op: 0.22 };
+  if (pct > 0) return { line: "#F0A315", fill: "#F0A315", ink: "#FFC24D", op: 0.2 };
+  return { line: "#C0491A", fill: "#C0491A", ink: "#FF9A73", op: 0.22 };
+}
+
+/**
+ * The zone's number, and its cross-street once there is room for it.
+ *
+ * Downtown's eight zones sit within about two kilometres of each other, so at
+ * the default zoom eight name plates land on top of one another and on top of
+ * the pickup pings -- less readable than the faint outlines they replaced.
+ * The number always shows; the name waits until you have zoomed in far enough
+ * for it to have somewhere to go.
+ */
+function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.DivIcon {
+  const plate = withName
+    ? `<span style="
+        margin-top:1px;padding:1px 5px;border-radius:4px;background:rgba(14,20,22,.72);
+        color:${ink};font:600 9px/1.25 var(--font-ui)">${name}</span>`
+    : "";
+  return L.divIcon({
+    className: "zone-label",
+    html: `<div style="
+        display:flex;flex-direction:column;align-items:center;
+        width:${withName ? 96 : 20}px;text-align:center;pointer-events:none">
+      <span style="
+        display:grid;place-items:center;width:18px;height:18px;border-radius:50%;
+        background:rgba(14,20,22,.8);color:${ink};
+        border:1px solid ${ink};font:700 10px/1 var(--font-ui)">${n}</span>
+      ${plate}
+    </div>`,
+    iconSize: [withName ? 96 : 20, withName ? 34 : 18],
+    iconAnchor: [withName ? 48 : 10, withName ? 17 : 9],
+  });
+}
+
+/** Zoom, as state, so the labels can decide whether they fit. */
+function useZoom(): number {
+  const map = useMap();
+  const [zoom, setZoom] = useState(map.getZoom());
+  useMapEvents({
+    zoomend() {
+      setZoom(map.getZoom());
+    },
+  });
+  return zoom;
+}
+
+/** Everything that depends on how far in you are. Split into its own child so
+ *  a zoom does not re-render the tile layer with it. */
+function ZoneLayer({ stats }: { stats?: ZoneStats }) {
+  const zoom = useZoom();
+  const named = zoom >= 15;
+
+  return (
+    <>
+      {ZONES.zones.map((z, i) => {
+        const pct = stats ? coverage(stats, z) : 0;
+        const covered = stats ? isCovered(stats, z) : false;
+        const t = zoneTier(pct, covered);
+        return (
+          <Fragment key={z.id}>
+            <Polygon
+              positions={zoneRings(z)}
+              interactive={false}
+              pathOptions={{
+                color: t.line,
+                weight: 1,
+                opacity: 0.55,
+                fillColor: t.fill,
+                fillOpacity: t.op,
+              }}
+            />
+            <Marker
+              position={[z.centroid[1], z.centroid[0]]}
+              icon={zoneLabel(i + 1, corner(z.landmark.a, z.landmark.b), t.ink, named)}
+              interactive={false}
+            />
+          </Fragment>
+        );
+      })}
+    </>
+  );
+}
+
 /** A stop already on the route: numbered, mint, joined by the run line. */
 function stopIcon(n: number): L.DivIcon {
   return L.divIcon({
@@ -95,11 +193,20 @@ interface Props {
   pickups: Pickup[];
   /** Stops this driver has already taken, drawn as the route. */
   route?: Pickup[];
+  /** Coverage per zone, so the drop-offs are coloured by what they still
+   *  need rather than being anonymous outlines. */
+  stats?: ZoneStats;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function PickupMap({ pickups, route = [], selectedId, onSelect }: Props) {
+export default function PickupMap({
+  pickups,
+  route = [],
+  stats,
+  selectedId,
+  onSelect,
+}: Props) {
   const pins = useMemo(
     () => pickups.filter((p) => p.lat != null && p.lng != null),
     [pickups],
@@ -142,16 +249,9 @@ export default function PickupMap({ pickups, route = [], selectedId, onSelect }:
           maxZoom={18}
         />
 
-        {/* The zones, faint. Context for where the food is going, not the
-            subject of this screen. */}
-        {ZONES.zones.map((z) => (
-          <Polygon
-            key={z.id}
-            positions={zoneRings(z)}
-            interactive={false}
-            pathOptions={{ color: "#5FA3F0", weight: 1, opacity: 0.35, fillOpacity: 0.05 }}
-          />
-        ))}
+        {/* The drop-offs: every zone, coloured by how covered it is. Muted
+            against the pickup pings, which are what this screen is for. */}
+        <ZoneLayer stats={stats} />
 
         {/* The run so far: a dashed line through the stops in driving order. */}
         {line.length > 1 && (
