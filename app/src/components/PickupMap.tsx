@@ -5,6 +5,7 @@ import {
   Marker,
   Polygon,
   Polyline,
+  Circle,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -12,6 +13,7 @@ import L from "leaflet";
 import type { Pickup, ZoneStats } from "../types";
 import { ZONES, coverage, downtownBounds, isCovered, zoneRings } from "../lib/zones";
 import { corner } from "../lib/streets";
+import type { Fix } from "../lib/geo";
 import { shortHour } from "../lib/food";
 
 /**
@@ -147,6 +149,18 @@ function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.D
   });
 }
 
+/** You. The blue dot every map app uses, because it is the one convention
+ *  nobody has to be taught. */
+const meIcon = L.divIcon({
+  className: "me-icon",
+  html: `<span style="
+    display:block;width:14px;height:14px;border-radius:50%;
+    background:var(--blue);border:2.5px solid #fff;
+    box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 2px 6px rgba(0,0,0,.5)"></span>`,
+  iconSize: [14, 14],
+  iconAnchor: [7, 7],
+});
+
 /** The far end of a delivery leg -- the zone this load is feeding. */
 function dropIcon(): L.DivIcon {
   return L.divIcon({
@@ -274,6 +288,8 @@ interface Props {
   /** Zoom buttons. On at full size, off on the 160px route previews, where
    *  they would cover a quarter of the map to no purpose. */
   controls?: boolean;
+  /** The driver, if they have shared it. */
+  me?: Fix | null;
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
@@ -283,6 +299,7 @@ export default function PickupMap({
   route = [],
   stats,
   controls = true,
+  me = null,
   selectedId,
   onSelect,
 }: Props) {
@@ -386,6 +403,18 @@ export default function PickupMap({
         ))}
 
         <PinLayer pins={pins} selectedId={selectedId} onSelect={onSelect} />
+
+        {me && (
+          <>
+            <Circle
+              center={[me.lat, me.lng]}
+              radius={Math.min(me.accuracy, 250)}
+              interactive={false}
+              pathOptions={{ color: "#5FA3F0", weight: 1, opacity: 0.4, fillOpacity: 0.12 }}
+            />
+            <Marker position={[me.lat, me.lng]} icon={meIcon} interactive={false} />
+          </>
+        )}
 
         <Fit focus={focus} points={allPoints} />
       </MapContainer>

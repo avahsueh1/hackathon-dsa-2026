@@ -974,3 +974,11 @@ button { font: inherit; color: inherit; }
   overflow-wrap: anywhere;
 }
 .dropsto-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+/* Location is optional, so asking for it is a quiet bar rather than a modal. */
+.locbar {
+  background: var(--surface-raised);
+  border-top-color: var(--border);
+  color: var(--text-secondary);
+}
+.me-icon { background: none; border: 0; }

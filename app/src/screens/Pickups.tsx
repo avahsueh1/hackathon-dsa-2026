@@ -5,6 +5,7 @@ import { ZONES } from "../lib/zones";
 import { activeRoute, assignToActive } from "../lib/routes";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
+import { useMyLocation, metresBetween, prettyMiles } from "../lib/geo";
 import PickupMap from "../components/PickupMap";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
@@ -69,6 +70,7 @@ export default function Pickups({
   onNeedName,
   onOpenRoute,
 }: Props) {
+  const { fix, status: locStatus, retry } = useMyLocation();
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
   // Which zone is being written, so its row can say so. There is no separate
@@ -129,6 +131,15 @@ export default function Pickups({
 
   const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
 
+  /** Straight-line metres from the driver, or null if we do not know either
+   *  end. Straight-line, not driving distance -- there is no routing service
+   *  here, and for "is this on my way" across eight downtown blocks the
+   *  difference does not change the answer. */
+  const distanceTo = (p: Pickup): number | null =>
+    fix && p.lat != null && p.lng != null
+      ? metresBetween(fix.lat, fix.lng, p.lat, p.lng)
+      : null;
+
   async function take() {
     if (!chosen) return;
     if (!volunteer) return onNeedName();
@@ -150,6 +161,7 @@ export default function Pickups({
       <div className="pickupbar">
         <span className="ss-label pickupbar-l">
           {fmt(totalMeals)} meals · {open.length} {plural(open.length, "pickup")}
+          {locStatus === "asking" && " · finding you"}
         </span>
         <div className="pickrow">
           {(["now", "hour", "soon", "any"] as When[]).map((w) => (
@@ -169,9 +181,17 @@ export default function Pickups({
         pickups={open}
         route={route}
         stats={stats}
+        me={fix}
         selectedId={selected}
         onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
       />
+
+      {locStatus === "off" && !chosen && (
+        <button type="button" className="routebar locbar" onClick={retry}>
+          <span className="ss-label">Turn on location to sort by how far away things are</span>
+          <span className="routebar-go">Enable</span>
+        </button>
+      )}
 
       {route.length > 0 && !chosen && (
         <button type="button" className="routebar" onClick={onOpenRoute}>
@@ -207,7 +227,11 @@ export default function Pickups({
             <span className="ss-label pickup-when">
               ◷ {windowLabel(chosen.pickup_from, chosen.pickup_to)}
             </span>
-            <span className="ss-num zcard-need">~{fmt(chosen.quantity)} meals</span>
+            <span className="ss-num zcard-need">
+              {fix && distanceTo(chosen) != null
+                ? `${prettyMiles(distanceTo(chosen))} away · ~${fmt(chosen.quantity)} meals`
+                : `~${fmt(chosen.quantity)} meals`}
+            </span>
           </div>
           <span className="pickupcard-name">
             {chosen.restaurant_name}
@@ -246,9 +270,23 @@ export default function Pickups({
                   {p.restaurant_name}
                   {p.demo && <span className="demotag">Sample</span>}
                 </span>
-                <span className="pickuprow-sub">{p.address}</span>
+                {/* Quantity moves up here only when the right-hand slot is
+                    showing distance instead. Without location it stays on the
+                    right and printing it twice reads as a bug. */}
+                {/* Quantity first: this line ellipses on a narrow phone, and
+                    truncating the address is survivable where losing the load
+                    size is not. */}
+                <span className="pickuprow-sub">
+                  {fix ? `~${fmt(p.quantity)} meals · ` : ""}
+                  {p.address}
+                </span>
               </span>
-              <span className="ss-num pickuprow-qty">~{fmt(p.quantity)}</span>
+              {/* Distance leads, because "is this on my way" is the question a
+                  driver is actually asking. Quantity moves to the line above
+                  rather than being dropped. */}
+              <span className="ss-num pickuprow-qty">
+                {fix ? prettyMiles(distanceTo(p)) : `~${fmt(p.quantity)}`}
+              </span>
             </button>
           ))}
         </div>
