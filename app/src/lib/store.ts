@@ -194,6 +194,20 @@ function localStats(pickups: Pickup[]): ZoneStats {
   return out;
 }
 
+/**
+ * Has migration_003 been applied?
+ *
+ * `select *` returns the columns if they exist, so a single row answers it --
+ * and an empty table means nothing to be wrong about either way. Deciding
+ * this on read rather than on the first successful post was the bug: the app
+ * kept saying "pickup details on this device" long after the columns were
+ * there, because nothing had been posted yet from this browser.
+ */
+function detailColumnsExist(rows: ClaimRow[]): boolean {
+  if (rows.length === 0) return true;
+  return "address" in rows[0];
+}
+
 async function refresh(): Promise<void> {
   try {
     const [zoneRows, claimRows] = await Promise.all([fetchZones(), fetchClaims()]);
@@ -237,6 +251,7 @@ async function refresh(): Promise<void> {
       pickups: [...local, ...hydrate(claimRows)],
       stats,
       ready: true,
+      detailsShared: detailColumnsExist(claimRows),
       error: null,
     });
   } catch (err) {
