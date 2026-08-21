@@ -37,6 +37,9 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
   const routes = useRoutes();
   const [busy, setBusy] = useState<string | null>(null);
   const [rerouting, setRerouting] = useState<string | null>(null);
+  // One open at a time. On a phone, three expanded routes is three maps and a
+  // lot of scrolling to find the stop you are standing outside.
+  const [open, setOpen] = useState<string | null>(null);
 
   const mine = useMemo(
     () =>
@@ -168,34 +171,53 @@ export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) 
       stops[0].pickup_to,
     );
     const isActive = routes.active === id;
+    // The route being added to opens by default -- it is the one you are
+    // working. The rest are a summary until asked for.
+    const isOpen = (open ?? routes.active) === id;
 
     return (
       <section key={id} className={`routecard${isActive ? " active" : ""}`}>
-        <header className="routehead">
-          <div className="routehead-top">
+        <button
+          type="button"
+          className="routehead"
+          aria-expanded={isOpen}
+          onClick={() => setOpen(isOpen ? "" : id)}
+        >
+          <span className="routehead-top">
             <span className="routelabel">
               {label}
               {isActive && <span className="nearesttag">Adding to this</span>}
             </span>
             <span className="ss-num runhead-date">{prettyDate(created.slice(0, 10))}</span>
-          </div>
-          <span className="runhead-big">
-            {stops.length} {plural(stops.length, "stop")} · ~{fmt(load)} meals
           </span>
-          <span className="runhead-sub">
-            Collect {windowLabel(stops[0].pickup_from, lastTo)} · dropping at{" "}
-            {zones.length === 1 ? zones[0] : `${zones.length} zones`}
+          <span className="routesummary">
+            <span className="ss-num routesummary-n">
+              {stops.length} {plural(stops.length, "stop")} · ~{fmt(load)} meals
+            </span>
+            <span className="routechev" aria-hidden="true">
+              {isOpen ? "▾" : "▸"}
+            </span>
           </span>
-        </header>
+          {isOpen && (
+            <span className="runhead-sub">
+              Collect {windowLabel(stops[0].pickup_from, lastTo)} · dropping at{" "}
+              {zones.length === 1 ? zones[0] : `${zones.length} zones`}
+            </span>
+          )}
+        </button>
 
-        <PickupMap pickups={[]} route={stops} selectedId={null} onSelect={() => {}} />
-
-        <div className="routestops">{stops.map(renderStop)}</div>
-
-        {!isActive && (
-          <Button variant="quiet" size="md" fullWidth onClick={() => setActive(id)}>
-            Add new stops to {label}
-          </Button>
+        {isOpen && (
+          <>
+            <PickupMap pickups={[]} route={stops} selectedId={null} onSelect={() => {}} />
+            <div className="routestops">{stops.map(renderStop)}</div>
+            {!isActive && (
+              <div className="routestops routestops-tail">
+                <Button variant="quiet" size="md" fullWidth onClick={() => setActive(id)}>
+                  Add new stops to {label}
+                </Button>
+              </div>
+            )}
+          </>
         )}
       </section>
     );

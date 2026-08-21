@@ -866,13 +866,38 @@ button { font: inherit; color: inherit; }
    where the next pickup will land -- not a status of the food. */
 .routecard.active { border-color: var(--blue); }
 
+/* The whole header is the toggle, so the tap target is the full width of the
+   card rather than a chevron a thumb has to find. */
 .routehead {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  width: 100%;
   padding: var(--s-3) var(--card-pad);
   min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  background: none;
+  border: 0;
+  color: inherit;
 }
+.routehead:hover { background: var(--surface-raised); }
+
+.routesummary {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+}
+/* Collapsed, this is the whole card, so it carries the weight the old
+   two-line hero used to -- one size down, because three of them stack. */
+.routesummary-n {
+  font: var(--t-body-lg);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+.routechev { color: var(--text-muted); font-size: 12px; }
 .routehead-top {
   display: flex;
   align-items: baseline;
@@ -881,7 +906,8 @@ button { font: inherit; color: inherit; }
   flex-wrap: wrap;
 }
 .routelabel {
-  font: var(--t-title);
+  font: var(--t-body-lg);
+  font-weight: 700;
   letter-spacing: -0.01em;
   display: flex;
   align-items: center;
@@ -900,6 +926,7 @@ button { font: inherit; color: inherit; }
 }
 /* Nested inside a route card, the stop is a row not a card of its own. */
 .routestops .stopcard { border-color: var(--border); background: var(--surface-sunken); }
+.routestops-tail { padding-top: 0; }
 
 /* Back + confirm inside the pickup card. The confirm is the wider of the two:
    going back is a correction, adding the stop is the point. */
