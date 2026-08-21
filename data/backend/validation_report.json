@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "zone_count": 8,
+  "unique_zone_id_count": 8,
+  "unique_zone_name_count": 8,
+  "source_block_count": 382,
+  "required_non_null_values_checked": 80,
+  "cross_zone_geometry_candidates_checked": 95,
+  "highest_need_zone": {
+    "zone_id": "east_village_south",
+    "need_score": 392.03,
+    "baseline_predicted": 379.42,
+    "recent_311_count": 1444
+  },
+  "lowest_need_zone": {
+    "zone_id": "outside_golden_hill",
+    "need_score": 20.26,
+    "baseline_predicted": 20.26,
+    "recent_311_count": 0
+  },
+  "geojson_sha256": "2cfd4969f07636eb2dc2237a1f61a2a863f963c3bd3e595a98ac222d1dcb0c89",
+  "csv_sha256": "2b306f6a08a184f888b8929dbddd6606f5ee6e05290dbbba7365781b75fe3930"
+}
