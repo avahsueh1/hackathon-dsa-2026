@@ -384,21 +384,35 @@ g#heat { pointer-events: none; }
 
 g#transit, g#shelters, g#health, g#plan { pointer-events: none; }
 g#plan circle.propdot { pointer-events: auto; cursor: help; }
-circle.propring { fill: #d97706; fill-opacity: 0.07; stroke: #b45309; stroke-opacity: 0.75; }
+/* The ring is the true 400 m catchment, so it is genuinely that big. Kept
+   faint so it reads as context rather than as the mark itself, and it comes
+   forward only when you hover the site. */
+circle.propring {
+  fill: #d97706; fill-opacity: 0.035;
+  stroke: #b45309; stroke-opacity: 0.32;
+  transition: fill-opacity .12s, stroke-opacity .12s;
+}
+g.propsite:hover circle.propring { fill-opacity: 0.12; stroke-opacity: 0.85; }
 circle.propdot { fill: #d97706; stroke: #ffffff; stroke-opacity: 0.95; }
+text.proprank {
+  fill: #ffffff; font-family: var(--sans); font-weight: 700;
+  text-anchor: middle; dominant-baseline: central; pointer-events: none;
+}
 svg.curve { width: 100%; height: auto; display: block; }
-g#shelters circle, g#health rect { pointer-events: auto; cursor: help; }
+g#shelters circle.shelter, g#health g.healthmark { pointer-events: auto; cursor: help; }
 
 /* Health facilities are squares so they stay distinct from the shelter
    circles without relying on colour alone. */
-rect.health { stroke-opacity: 0.95; }
-rect.health.clinic      { fill: #0d9488; fill-opacity: 0.55; stroke: #0f5f59; }
-rect.health.hospital,
-rect.health.psychiatric { fill: #b91c1c; fill-opacity: 0.6;  stroke: #7f1414; }
-rect.health.nursing     { fill: #475569; fill-opacity: 0.5;  stroke: #2c3644; }
-rect.health.hospice     { fill: #b45309; fill-opacity: 0.5;  stroke: #7a3806; }
-rect.health.home_health,
-rect.health.other       { fill: #64748b; fill-opacity: 0.42; stroke: #3d4757; }
+circle.healthhalo { fill: var(--surface-raised); fill-opacity: 0.92; stroke: var(--border-strong); }
+g.healthmark path { pointer-events: none; }
+
+/* One hue for every shelter; occupancy is a tag, not a second colour. */
+rect.fulltag { fill: #b5333f; }
+text.fulltagtx {
+  fill: #ffffff; font-family: var(--sans); font-weight: 700;
+  letter-spacing: 0.06em; text-anchor: middle; dominant-baseline: central;
+  pointer-events: none;
+}
 path.trolley { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 path.trolley.casing { stroke: #ffffff; stroke-opacity: 0.85; }
 circle.station { fill: #ffffff; stroke: #4a4a46; }
@@ -406,7 +420,7 @@ circle.shelter {
   fill: #7a3fb5; fill-opacity: 0.42;
   stroke: #4c2276; stroke-opacity: 0.95;
 }
-circle.shelter.full { fill: #b5333f; fill-opacity: 0.5; stroke: #7d1d26; }
+circle.shelterpin { fill: #3b1a63; stroke: #ffffff; stroke-opacity: 0.9; pointer-events: none; }
 
 text.stlabel {
   fill: var(--map-label);
@@ -455,6 +469,15 @@ text.arealabel {
 .mlrow .sw.circ { width: 11px; height: 11px; border-radius: 50%; border: 1.4px solid; }
 .mlrow .sw.sq { width: 10px; height: 10px; border-radius: 2px; border: 1.2px solid; }
 .mlrow .sw.line { width: 16px; height: 3.5px; border-radius: 2px; }
+.mlrow .micon { width: 12px; height: 12px; flex: none; }
+.mlrow .sw.pin {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: #3b1a63; border: 1.2px solid #fff; box-shadow: 0 0 0 1px #bbb;
+}
+.mlrow .fulltagsw {
+  background: #b5333f; color: #fff; font-size: 8.5px; font-weight: 700;
+  letter-spacing: 0.06em; padding: 1px 5px; border-radius: 6px; margin-right: 6px;
+}
 .mlrow .sw.dot {
   width: 7px; height: 7px; border-radius: 50%;
   background: #fff; border: 1.2px solid #4a4a46;
@@ -757,6 +780,19 @@ svg.mc { width: 100%; height: auto; display: block; max-width: 360px; }
   .findings { grid-template-columns: 1fr; }
 }
 
+.planmapwrap {
+  background: var(--map-street); border: 1px solid var(--border-subtle);
+  border-radius: 9px; overflow: hidden; margin-bottom: 6px;
+}
+#plan-map { display: block; width: 100%; height: auto; }
+.site .why { margin-top: 6px; }
+.site .whybar {
+  height: 6px; border-radius: 3px; background: var(--surface-sunken);
+  overflow: hidden; max-width: 260px;
+}
+.site .whybar span { display: block; height: 100%; background: var(--step-500); border-radius: 3px; }
+.site .whytx { font-size: 11px; color: var(--text-secondary); margin-top: 3px; }
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -956,6 +992,10 @@ svg.mc { width: 100%; height: auto; display: block; max-width: 360px; }
 
   <h2 class="secthead">Where the next shelters should go</h2>
   <p class="sectsub" id="plan-sub"></p>
+  <div class="planmapwrap">
+    <svg id="plan-map" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <p class="sparkcap" id="plan-map-cap"></p>
   <div class="sites" id="plan-sites"></div>
 
   <h2 class="secthead">Is the model actually worth running?</h2>
@@ -1395,19 +1435,24 @@ if (TRANSIT) {
 }
 
 // --------------------------------------------------------- shelters (HIC)
+// One colour for every shelter -- size carries the bed count. A second hue for
+// "full" was doing two jobs with one channel and read as a different kind of
+// thing, so occupancy is a small FULL tag instead.
 var SHELTERS = DATA.shelters;
 var shelterNodes = [];
 if (SHELTERS) {
   SHELTERS.shelters.forEach(function (s) {
-    var c = document.createElementNS(NS, "circle");
     var full = s.utilization !== null && s.utilization >= 0.95;
-    c.setAttribute("class", "shelter" + (full ? " full" : ""));
-    c.setAttribute("cx", px(s.lonlat[0]).toFixed(2));
-    c.setAttribute("cy", py(s.lonlat[1]).toFixed(2));
-    c.dataset.shelter = "1";
-    c.dataset.beds = s.beds;
+    var x = px(s.lonlat[0]), y = py(s.lonlat[1]);
+    var g = document.createElementNS(NS, "g");
+
+    var c = document.createElementNS(NS, "circle");
+    c.setAttribute("class", "shelter");
+    c.setAttribute("cx", x.toFixed(2));
+    c.setAttribute("cy", y.toFixed(2));
     // Area proportional to beds, so 300 beds looks like 3x of 100, not 9x.
     c._r = 4 + Math.sqrt(s.beds) * 1.5;
+
     var money = s.funding_fy25_usd
       ? "\nFY25 funding: $" + (s.funding_fy25_usd / 1e6).toFixed(2) + "M" +
         (s.cost_per_bed_year_usd
@@ -1422,8 +1467,29 @@ if (SHELTERS) {
       (s.utilization !== null ? " (" + Math.round(s.utilization * 100) + "% full)" : "") +
       money;
     c.appendChild(t);
-    gShelters.appendChild(c);
-    shelterNodes.push(c);
+    g.appendChild(c);
+
+    // The disc is sized by beds, so it says "roughly here, this big". A small
+    // solid dot marks the actual address.
+    var pin = document.createElementNS(NS, "circle");
+    pin.setAttribute("class", "shelterpin");
+    pin.setAttribute("cx", x.toFixed(2));
+    pin.setAttribute("cy", y.toFixed(2));
+    g.appendChild(pin);
+
+    var tag = null, tagText = null;
+    if (full) {
+      tag = document.createElementNS(NS, "rect");
+      tag.setAttribute("class", "fulltag");
+      g.appendChild(tag);
+      tagText = document.createElementNS(NS, "text");
+      tagText.setAttribute("class", "fulltagtx");
+      tagText.textContent = "FULL";
+      g.appendChild(tagText);
+    }
+
+    gShelters.appendChild(g);
+    shelterNodes.push({ c: c, pin: pin, x: x, y: y, tag: tag, tagText: tagText });
   });
 }
 
@@ -1437,27 +1503,57 @@ if (TRANSIT) srcs.push("<b>Transit:</b> " + TRANSIT.attribution);
 document.getElementById("sources").innerHTML = srcs.join("<br>");
 
 // ------------------------------------------------- health facilities (HCAI)
-// Only the ones sitting on the block grid are drawn. The acute hospitals are
-// all several km outside the frame, which is itself the finding, so they are
-// reported in the panel rather than pinned to an edge.
+// Drawn as icons rather than coloured squares: a medical cross reads as care
+// at a glance, where a teal square needs the legend every time. Only the
+// facilities sitting on the block grid are drawn -- the acute hospitals are
+// all several km outside the frame, which is itself the finding.
+
+// Each icon is a path drawn in a 0..10 box, scaled and centred at the marker.
+var ICONS = {
+  clinic:      "M4 0 H6 V4 H10 V6 H6 V10 H4 V6 H0 V4 H4 Z",
+  hospital:    "M4 0 H6 V4 H10 V6 H6 V10 H4 V6 H0 V4 H4 Z",
+  psychiatric: "M4 0 H6 V4 H10 V6 H6 V10 H4 V6 H0 V4 H4 Z",
+  hospice:     "M5 10 C1 6.6 0 5 0 3.4 A3 3 0 0 1 5 1.6 A3 3 0 0 1 10 3.4 C10 5 9 6.6 5 10 Z",
+  nursing:     "M0 4 H4 A2 2 0 0 1 6 6 H10 V9 H0 Z M1 1 H3 V3.4 H1 Z",
+  home_health: "M5 0 L10 4.2 V10 H6.5 V6.5 H3.5 V10 H0 V4.2 Z",
+  other:       "M5 1 A4 4 0 1 1 4.99 1 Z"
+};
+var ICON_COLOR = {
+  clinic: "#0d9488", hospital: "#b91c1c", psychiatric: "#b91c1c",
+  hospice: "#b45309", nursing: "#475569", home_health: "#64748b", other: "#64748b"
+};
+
 var HEALTH = DATA.health;
 var healthNodes = [];
 if (HEALTH) {
   HEALTH.facilities.filter(function (f) { return f.in_view; }).forEach(function (f) {
-    var r = document.createElementNS(NS, "rect");
-    r.setAttribute("class", "health " + f.cls);
-    r._s = (f.cls === "hospital" || f.cls === "psychiatric") ? 11 : 7.5;
-    r._x = px(f.lonlat[0]);
-    r._y = py(f.lonlat[1]);
+    var g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "healthmark");
+    var x = px(f.lonlat[0]), y = py(f.lonlat[1]);
+
+    // A pale disc behind the glyph so it stays legible over a dark block.
+    var halo = document.createElementNS(NS, "circle");
+    halo.setAttribute("class", "healthhalo");
+    halo.setAttribute("cx", x.toFixed(2));
+    halo.setAttribute("cy", y.toFixed(2));
+    g.appendChild(halo);
+
+    var p = document.createElementNS(NS, "path");
+    p.setAttribute("d", ICONS[f.cls] || ICONS.other);
+    p.setAttribute("fill", ICON_COLOR[f.cls] || ICON_COLOR.other);
+    g.appendChild(p);
+
     var t = document.createElementNS(NS, "title");
     t.textContent = f.name + "\n" + f.type +
       "\n" + f.address + ", " + f.city +
       (f.capacity ? "\n" + f.capacity + " licensed beds" : "") +
       (f.trauma ? "\nTrauma centre: " + f.trauma : "") +
       "\nNearest block: " + f.nearest_block + " (" + f.nearest_block_m + " m)";
-    r.appendChild(t);
-    gHealth.appendChild(r);
-    healthNodes.push(r);
+    g.appendChild(t);
+
+    gHealth.appendChild(g);
+    healthNodes.push({ g: g, path: p, halo: halo, x: x, y: y,
+                       big: f.cls === "hospital" || f.cls === "psychiatric" });
   });
 }
 
@@ -1476,22 +1572,24 @@ function paintMapLegend() {
     parts.push('<span class="mlrow mlgroup">Shelters</span>');
     parts.push(swatch("circ", "background:#7a3fb5;opacity:.55;border-color:#4c2276",
                       "circle size = beds"));
-    parts.push(swatch("circ", "background:#b5333f;opacity:.6;border-color:#7d1d26",
-                      "95%+ full"));
+    parts.push(swatch("pin", "", "exact location"));
+    parts.push('<span class="mlrow"><span class="fulltagsw">FULL</span>' +
+      "95% or more occupied</span>");
   }
   if (document.getElementById("lay-health").checked && HEALTH) {
     parts.push('<span class="mlrow mlgroup">Health</span>');
     var seen = {};
     HEALTH.facilities.forEach(function (f) { if (f.in_view) seen[f.cls] = 1; });
-    var HL = [["hospital", "#b91c1c", "hospital"], ["psychiatric", "#b91c1c", "psychiatric"],
-              ["clinic", "#0d9488", "clinic"], ["nursing", "#475569", "nursing home"],
-              ["hospice", "#b45309", "hospice"], ["home_health", "#64748b", "home health"],
-              ["other", "#64748b", "other"]];
+    var HL = [["hospital", "hospital"], ["psychiatric", "psychiatric"],
+              ["clinic", "clinic"], ["nursing", "nursing home"],
+              ["hospice", "hospice"], ["home_health", "home health"],
+              ["other", "other"]];
     HL.forEach(function (h) {
-      if (seen[h[0]]) {
-        parts.push(swatch("sq", "background:" + h[1] + ";opacity:.6;border-color:" + h[1],
-                          h[2]));
-      }
+      if (!seen[h[0]]) return;
+      // Draw the real icon in the legend, so the key matches the map exactly.
+      parts.push('<span class="mlrow"><svg class="micon" viewBox="0 0 10 10">' +
+        '<path d="' + (ICONS[h[0]] || ICONS.other) + '" fill="' +
+        (ICON_COLOR[h[0]] || ICON_COLOR.other) + '"/></svg>' + h[1] + "</span>");
     });
     // Say it plainly: there is no hospital on this map.
     if (!seen.hospital && !seen.psychiatric && HEALTH.totals.nearest_trauma) {
@@ -1505,8 +1603,8 @@ function paintMapLegend() {
     parts.push(swatch("circ", "background:#d97706;border-color:#ffffff",
                       "recommended site"));
     parts.push(swatch("circ",
-      "background:#d97706;opacity:.18;border-color:#b45309",
-      DATA.plan.method.walk_m + " m walk it covers"));
+      "background:#d97706;opacity:.12;border-color:#b45309",
+      "the " + DATA.plan.method.walk_m + " m walk it covers (hover to highlight)"));
   }
   if (document.getElementById("lay-transit").checked && TRANSIT) {
     parts.push('<span class="mlrow mlgroup">Trolley</span>');
@@ -1835,27 +1933,44 @@ function applyTransform() {
     c.setAttribute("r", (3.1 / k).toFixed(2));
     c.style.strokeWidth = (1.1 / k).toFixed(2);
   });
-  shelterNodes.forEach(function (c) {
-    c.setAttribute("r", (c._r / Math.sqrt(k)).toFixed(2));
-    c.style.strokeWidth = (1.4 / k).toFixed(2);
+  shelterNodes.forEach(function (n) {
+    var r = n.c._r / Math.sqrt(k);
+    n.c.setAttribute("r", r.toFixed(2));
+    n.c.style.strokeWidth = (1.4 / k).toFixed(2);
+    n.pin.setAttribute("r", (2.6 / Math.sqrt(k)).toFixed(2));
+    n.pin.style.strokeWidth = (0.9 / k).toFixed(2);
+    if (!n.tag) return;
+    // The FULL tag keeps a constant on-screen size and sits just above the disc.
+    var w = 26 / k, h = 11 / k, ty = n.y - r - h * 0.55;
+    n.tag.setAttribute("x", (n.x - w / 2).toFixed(2));
+    n.tag.setAttribute("y", (ty - h / 2).toFixed(2));
+    n.tag.setAttribute("width", w.toFixed(2));
+    n.tag.setAttribute("height", h.toFixed(2));
+    n.tag.setAttribute("rx", (h / 2).toFixed(2));
+    n.tagText.setAttribute("x", n.x.toFixed(2));
+    n.tagText.setAttribute("y", ty.toFixed(2));
+    n.tagText.style.fontSize = (7.6 / k).toFixed(2) + "px";
   });
-  healthNodes.forEach(function (r) {
-    var s = r._s / Math.sqrt(k);
-    r.setAttribute("x", (r._x - s / 2).toFixed(2));
-    r.setAttribute("y", (r._y - s / 2).toFixed(2));
-    r.setAttribute("width", s.toFixed(2));
-    r.setAttribute("height", s.toFixed(2));
-    r.setAttribute("rx", (s * 0.22).toFixed(2));
-    r.style.strokeWidth = (1.2 / k).toFixed(2);
+  healthNodes.forEach(function (n) {
+    var size = (n.big ? 13 : 10) / Math.sqrt(k);
+    n.halo.setAttribute("r", (size * 0.72).toFixed(2));
+    n.halo.style.strokeWidth = (1 / k).toFixed(2);
+    // Icon paths are authored in a 0..10 box, so scale then centre.
+    var sc = size / 10;
+    n.path.setAttribute("transform",
+      "translate(" + (n.x - size / 2).toFixed(2) + "," + (n.y - size / 2).toFixed(2) +
+      ") scale(" + sc.toFixed(4) + ")");
   });
   paths.forEach(function (p) {
     if (p.classList.contains("sel")) p.style.strokeWidth = (1.7).toFixed(2) + "px";
   });
   planNodes.forEach(function (pn) {
-    pn.dot.setAttribute("r", (6 / Math.sqrt(k)).toFixed(2));
+    var r = 9 / Math.sqrt(k);
+    pn.dot.setAttribute("r", r.toFixed(2));
     pn.dot.style.strokeWidth = (1.6 / k).toFixed(2);
     pn.ring.style.strokeWidth = (1.3 / k).toFixed(2);
     pn.ring.style.strokeDasharray = (5 / k).toFixed(2) + " " + (4 / k).toFixed(2);
+    if (pn.num) pn.num.style.fontSize = (r * 1.15).toFixed(2) + "px";
   });
   drawSelBox();
 }
@@ -2833,26 +2948,102 @@ function ruler(km, label, hereLabel) {
     hn(money(T.annual_cost_usd), "a year to operate") +
     hn(T.pct_of_unmet_covered + "%", "of the current gap closed");
 
+
+  // ------------------------------------------------------------- mini map
+  // The same projection as the big map, drawn small and quiet: grey blocks,
+  // shaded by today's count, with the seven sites numbered on top. It answers
+  // "where are these?" without making the reader change tabs.
+  (function minimap() {
+    var el = document.getElementById("plan-map");
+    if (!el) return;
+    el.setAttribute("viewBox", "0 0 " + VB_W.toFixed(1) + " " + VB_H.toFixed(1));
+
+    var mi = month_index[TD.month];
+    var row = mi === undefined ? null : V.values[mi];
+    var parts = [];
+
+    parts.push('<rect x="0" y="0" width="' + VB_W + '" height="' + VB_H +
+      '" fill="' + tok("--map-street") + '"/>');
+
+    // blocks, shaded by the month the model was built on
+    GEO.blocks.forEach(function (b, i) {
+      var v = row ? row[i] : null;
+      var fill = tok("--map-parcel");
+      if (v !== null && v !== undefined && v > 0) fill = BREAKS[binOf(v)].blocksHex;
+      parts.push('<path d="' + ringsToPath(b.rings) + '" fill="' + fill +
+        '" fill-opacity="0.9" stroke="' + tok("--map-street") + '" stroke-width="1.6"/>');
+    });
+
+    // existing shelters, so "why not just there" answers itself
+    if (SHELTERS) {
+      SHELTERS.shelters.forEach(function (s) {
+        var sx = px(s.lonlat[0]).toFixed(1), sy = py(s.lonlat[1]).toFixed(1);
+        parts.push('<circle cx="' + sx + '" cy="' + sy + '" r="' +
+          (3 + Math.sqrt(s.beds) * 1.1).toFixed(1) +
+          '" fill="#7a3fb5" fill-opacity="0.30" stroke="#4c2276" stroke-opacity="0.7"' +
+          ' stroke-width="1.4"/>');
+        parts.push('<circle cx="' + sx + '" cy="' + sy +
+          '" r="3.2" fill="#3b1a63" stroke="#fff" stroke-width="1.1"/>');
+      });
+    }
+
+    // the recommendations
+    var rad = PLAN.method.walk_m / 110570.0 * scale;
+    PLAN.recommendations.forEach(function (r) {
+      var x = px(r.centroid[0]), y = py(r.centroid[1]);
+      parts.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) + '" r="' +
+        rad.toFixed(1) + '" fill="#d97706" fill-opacity="0.06" stroke="#b45309"' +
+        ' stroke-opacity="0.4" stroke-width="1.6" stroke-dasharray="6 5"/>');
+    });
+    PLAN.recommendations.forEach(function (r) {
+      var x = px(r.centroid[0]), y = py(r.centroid[1]);
+      parts.push('<circle cx="' + x.toFixed(1) + '" cy="' + y.toFixed(1) +
+        '" r="14" fill="#d97706" stroke="#fff" stroke-width="2.5"><title>Site ' +
+        r.rank + ": " + prettyBlockId(r.block_id) + ", " + r.beds +
+        " beds</title></circle>");
+      parts.push('<text x="' + x.toFixed(1) + '" y="' + (y + 0.5).toFixed(1) +
+        '" font-size="17" font-weight="700" fill="#fff" text-anchor="middle"' +
+        ' dominant-baseline="central" pointer-events="none">' + r.rank + "</text>");
+    });
+
+    el.innerHTML = parts.join("");
+    document.getElementById("plan-map-cap").innerHTML =
+      "Numbered circles are the recommended sites; the dashed ring is the " +
+      PLAN.method.walk_m + "&nbsp;m walk each one covers. Purple discs are the " +
+      "shelters that already exist, sized by beds. Block shading is " +
+      monthName(TD.month) + ", the month the model was built on.";
+  })();
+
   document.getElementById("plan-sub").innerHTML =
     "Ranked by how many people each one reaches who have no bed nearby today. " +
     "Sites marked <span class='tag'>holds up</span> also come out on top when " +
     "demand is averaged over the last three counts instead of just the most " +
     "recent, so they do not depend on a single year.";
 
+  // Each card carries the evidence for itself: how many people within a
+  // 5-minute walk have no bed today, how far the nearest existing shelter is,
+  // and what else is reachable. Without that the ranking is just an assertion.
+  var maxUnmet = Math.max.apply(null,
+    PLAN.recommendations.map(function (r) { return r.unmet_within_walk; }));
   document.getElementById("plan-sites").innerHTML = PLAN.recommendations
     .map(function (r, k) {
       var access = [];
+      access.push(fmt(r.nearest_shelter_m) + " m to the nearest shelter");
       if (r.trolley_stops_within_walk) access.push(r.trolley_stops_within_walk + " trolley stops");
       if (r.clinics_within_walk) access.push(r.clinics_within_walk + " clinics");
-      access.push(fmt(r.nearest_shelter_m) + " m to nearest existing shelter");
+      var pct = maxUnmet > 0 ? (r.unmet_within_walk / maxUnmet * 100) : 0;
       return '<div class="site' + (k > 2 ? " rest" : "") + '">' +
         '<div class="rank">' + r.rank + "</div>" +
         '<div><div class="where">' + prettyBlockId(r.block_id) +
         (r.robust ? '<span class="tag">holds up</span>' : "") + "</div>" +
-        '<div class="meta">' + r.area + " &middot; " + access.join(" &middot; ") + "</div></div>" +
+        '<div class="meta">' + r.area + " &middot; " + access.join(" &middot; ") + "</div>" +
+        '<div class="why"><div class="whybar"><span style="width:' + pct.toFixed(1) +
+        '%"></span></div><div class="whytx"><b>' + fmt(r.unmet_within_walk) +
+        " people</b> within a 5-minute walk have no bed today</div></div></div>" +
         '<div class="nums"><div class="b">' + r.beds + " beds</div>" +
-        '<div class="c">reaches ' + fmt(r.people_covered) + " people &middot; " +
-        money(r.annual_cost_usd) + "/yr</div></div></div>";
+        '<div class="c">reaches ' + fmt(r.people_covered) + " people<br>" +
+        money(r.annual_cost_usd) + "/yr &middot; " + money(r.cost_per_person_usd, 0) +
+        " each</div></div></div>";
     }).join("");
 
   // model vs the obvious plan
@@ -2970,6 +3161,7 @@ function ruler(km, label, hereLabel) {
 if (PLAN && typeof gPlan !== "undefined") {
   PLAN.recommendations.forEach(function (r) {
     var g = document.createElementNS(NS, "g");
+    g.setAttribute("class", "propsite");
     var x = px(r.centroid[0]), y = py(r.centroid[1]);
     var ring = document.createElementNS(NS, "circle");
     ring.setAttribute("class", "propring");
@@ -2989,9 +3181,16 @@ if (PLAN && typeof gPlan !== "undefined") {
       "\n" + money(r.annual_cost_usd) + " a year";
     dot.appendChild(t);
     g.appendChild(dot);
+    var num = document.createElementNS(NS, "text");
+    num.setAttribute("class", "proprank");
+    num.setAttribute("x", x.toFixed(2));
+    num.setAttribute("y", y.toFixed(2));
+    num.textContent = r.rank;
+    g.appendChild(num);
+
     g._x = x; g._y = y;
     gPlan.appendChild(g);
-    planNodes.push({ g: g, ring: ring, dot: dot });
+    planNodes.push({ g: g, ring: ring, dot: dot, num: num });
   });
   bindLayer("lay-plan", gPlan);
 }

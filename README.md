@@ -74,6 +74,8 @@ Per spec §8, rooted at the repo root:
 │       ├── values.json
 │       └── insights.json
 ├── scripts/
+│   ├── ingest.py              # front door: validate + merge a new data file
+│   ├── rebuild_all.py         # run the whole pipeline, stop on the first break
 │   ├── check_data.py          # row-count + reconciliation checks — run first
 │   ├── build_heatmap_data.py  # the precompute pipeline (Steps A–E + tests 1–8)
 │   ├── build_transit_data.py  # MTS trolley lines/stations, clipped to downtown
@@ -182,6 +184,29 @@ every visible label — "People without a bed" rather than "unmet", "people"
 rather than "persons", "Based on 12 physical counts" rather than "share
 confidence" — and the dense tables are collapsed by default so the first screen
 is a story, not a spreadsheet.
+
+## Adding new data
+
+This is meant to be used, not just demoed. New counts go in the front door:
+
+```bash
+python3 scripts/ingest.py path/to/new_counts.csv
+python3 scripts/rebuild_all.py --accept-new-data
+```
+
+`ingest.py` detects the dataset from its columns, validates it, merges on the
+natural key (so re-sending a file changes nothing, and a correction is just
+that month re-sent), and backs up what it replaces. `rebuild_all.py` then runs
+all seven stages and stops at the first real problem.
+
+Everything downstream is derived: the slider length, which months count as
+observed, block shares, the concentration stats, the shelter gap, and the
+siting model — which rebases onto whatever the newest counted month is.
+Verified end to end by ingesting a 13th count date.
+
+See [`docs/UPLOADING_DATA.md`](docs/UPLOADING_DATA.md) for the schema of each
+dataset and the difference between a *baseline* check (relaxable, because new
+data is supposed to move it) and an *integrity* check (never relaxable).
 
 ## The siting model — how the recommendation is made
 
