@@ -1,19 +1,63 @@
-# Downtown SD Homelessness — Block-Level Heat Map
+# Surplus &rarr; Street
+### Food-rescue coordination for Downtown San Diego
 
-A dashboard that turns 108 months of downtown San Diego street counts into a
-concrete answer to one question: **where should the next shelters go?**
+Downtown restaurants throw away good food every night while people go hungry two
+blocks away. Some restaurants already drive it out — but nobody coordinates it,
+so four show up at 16th & Market on a Friday and nothing arrives anywhere on a
+Tuesday.
 
-Three tabs over one dataset:
+**This is the coordination layer.** Claim a zone, post how much you are bringing,
+and every other restaurant sees it is covered.
 
-| Tab | What it does |
+| Tab | What it is |
 |---|---|
-| **Overview** | The argument, mostly in pictures: a three-step flow (data → pattern → plan) and four findings, each a small inline chart with a single line of text under it. |
-| **Explore the map** | Block-level heat map of 382 blocks across 108 months, with a street basemap, trolley/shelter/health overlays and a box-select tool. |
-| **Action plan** | A maximal-coverage siting model: 7 sites, 617 beds, $18.9M/yr, closing 94% of the gap — and the evidence that it beats the obvious alternative. |
+| **Tonight** | The app. 10 delivery zones ranked by how much food is still needed, a zone map, and the claim flow. |
+| **My drops** | Every claim you have made, exportable as a **California SB 1383** donation log. |
+| **The situation** | The analysis underneath: 108 months of street counts across 382 blocks, with the shelter, health and transit context. |
+| **Shelter plan** | A maximal-coverage siting model for where new shelter beds would reach the most people. |
 
-Built for the San Diego DSA hackathon, "Downtown Homelessness" challenge.
-(The spec says 102 months; the delivered data carries 108 — see "Three places
-the data disagreed with the spec".)
+Built for Building for Good 2026, Downtown Homelessness track.
+
+## The need model
+
+```
+need tonight (zone) = expected people - meals already claimed
+```
+
+`expected people` is the mean of the three most recent published months for the
+blocks in that zone, **rounded to the nearest 5**. `meals already claimed` comes
+from the app itself, which is what stops two restaurants covering the same
+corner while another goes dark.
+
+The 10 zones are not invented — they are the neighbourhoods already present in
+the source data, so a driver can navigate to one. Six of them carry 91% of the
+expected need.
+
+## Privacy is a design constraint, not a disclaimer
+
+The app is handed to restaurant staff and volunteers. A public map of the exact
+blocks where people sleep is surveillance of people who cannot consent to it, so:
+
+- **Zones, not pinpoints.** `data/out/zones.json` is the only file the app reads.
+  It carries a need *band*, a *rounded* expected figure and zone geography — no
+  per-block values, no exact counts, no individual locations.
+- **Every block in a zone is shaded the same colour** on the app map, so the
+  picture cannot be read back down to a block.
+- The block-level detail lives in **The situation** tab, which is the analyst
+  view — the thing you show a city planner, not the thing a driver opens at 10pm.
+
+> This is a resource-allocation tool, not an enforcement one.
+
+## Honest limits
+
+- **Claims are stored in this browser** (`localStorage`). That demonstrates the
+  loop, but the whole point of the product is that claims are *shared* — a hosted
+  version needs a backend. Every read and write goes through `loadClaims` /
+  `saveClaims`, so swapping in an API is one function.
+- Expected need is a **model**, not a headcount. Volunteers walk the blocks twelve
+  nights a year; everything between those nights is estimated from the
+  neighbourhood total, and the app says so.
+- One meal per expected person is a **planning assumption**, not a measurement.
 
 ## The hard constraint
 
@@ -82,6 +126,7 @@ Per spec §8, rooted at the repo root:
 │   ├── build_shelter_data.py  # HIC beds + FY25 funding + siting gap model
 │   ├── build_health_data.py   # HCAI licensed health facilities near downtown
 │   ├── build_siting_model.py  # where the next shelters should go
+│   ├── build_zones.py         # delivery zones + the need model the app reads
 │   └── build_page.py          # inlines data/out/*.json into index.html
 ├── docs/
 │   └── HEATMAP_SPEC.md       # authoritative implementation spec
@@ -136,10 +181,13 @@ python3 scripts/build_health_data.py
 # 4. The siting model. Needs shelters.json; reads transit/health if present.
 python3 scripts/build_siting_model.py
 
-# 5. Inline everything into index.html.
+# 5. Delivery zones for the app.
+python3 scripts/build_zones.py
+
+# 6. Inline everything into index.html.
 python3 scripts/build_page.py
 
-# 6. Open the result. No server needed — that is the point.
+# 7. Open the result. No server needed — that is the point.
 open index.html
 ```
 

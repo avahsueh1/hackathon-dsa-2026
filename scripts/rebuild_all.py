@@ -38,6 +38,7 @@ STEPS = [
     ("build_health_data.py", "clinics and hospitals", False,
      ["health_facility_locations.csv"]),
     ("build_siting_model.py", "where the next shelters go", False, ["2025_HIC.csv"]),
+    ("build_zones.py", "delivery zones + need model", True, []),
     ("build_page.py", "inline everything into index.html", True, []),
 ]
 

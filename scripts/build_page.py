@@ -38,7 +38,8 @@ REQUIRED = (("geometry", "geometry.json"),
 OPTIONAL = (("transit", "transit.json"),
             ("shelters", "shelters.json"),
             ("health", "health.json"),
-            ("plan", "plan.json"))
+            ("plan", "plan.json"),
+            ("zones", "zones.json"))
 
 payload = {}
 for key, name in REQUIRED:
