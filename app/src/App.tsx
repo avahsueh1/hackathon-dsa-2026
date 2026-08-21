@@ -144,14 +144,12 @@ export default function App() {
           <Pickups
             offers={offers}
             volunteer={account?.name ?? null}
-            onAccepted={() => {
-              setTab("run");
-              setToast("It’s yours — now choose where it goes");
-            }}
+            onAccepted={() => setToast("Added to your route")}
             onNeedName={() => {
               setTab("account");
               setToast("Add your name so restaurants know who is coming");
             }}
+            onOpenRoute={() => setTab("run")}
           />
         )}
 

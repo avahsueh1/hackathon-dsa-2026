@@ -27,6 +27,7 @@ import {
   type ClaimRow,
 } from "./backend";
 import { ZONES } from "./zones";
+import { alreadySeeded, demoOffers, markSeeded } from "./seed";
 import type { Claim, ClaimStatus, NewOffer, Offer, ZoneStats } from "../types";
 
 const CLAIM_KEY = "surplus-street-claims-v1";
@@ -146,9 +147,19 @@ let offersShared = false;
  *  says to reload after that. */
 let offersProbed = false;
 
+/** Samples, but only on a device that has never had any offers and has no
+ *  shared table to put real ones in. Never inserted anywhere remote. */
+function seedIfEmpty(existing: Offer[]): Offer[] {
+  if (existing.length > 0 || alreadySeeded()) return existing;
+  const demo = demoOffers();
+  writeLocalOffers(demo);
+  markSeeded();
+  return demo;
+}
+
 async function loadOffers(): Promise<Offer[]> {
-  if (!hasBackend) return readLocalOffers();
-  if (offersProbed && !offersShared) return readLocalOffers();
+  if (!hasBackend) return seedIfEmpty(readLocalOffers());
+  if (offersProbed && !offersShared) return seedIfEmpty(readLocalOffers());
   try {
     const rows = await fetchOffers();
     offersShared = true;
@@ -160,7 +171,7 @@ async function loadOffers(): Promise<Offer[]> {
       // run offers on this device so the app still works.
       offersShared = false;
       offersProbed = true;
-      return readLocalOffers();
+      return seedIfEmpty(readLocalOffers());
     }
     throw err;
   }
@@ -281,7 +292,7 @@ export function initStore(): void {
 
   if (!hasBackend) {
     const claims = readLocal();
-    const offers = readLocalOffers();
+    const offers = seedIfEmpty(readLocalOffers());
     publish({
       claims,
       offers,
@@ -433,6 +444,17 @@ export function acceptOffer(id: string, volunteer: string): Promise<void> {
  *  exists for, and the moment the food starts counting towards a zone. */
 export function routeOffer(id: string, zoneId: string): Promise<void> {
   return writeOffer(id, { zone_id: zoneId });
+}
+
+/** Route every stop in a run to the same zone. A driver fills the car from
+ *  several kitchens and drops the load in one place; splitting it across zones
+ *  is a second run, not a second field on this one. */
+export async function routeAll(ids: string[], zoneId: string): Promise<void> {
+  for (const id of ids) await routeOffer(id, zoneId);
+}
+
+export async function deliverAll(ids: string[]): Promise<void> {
+  for (const id of ids) await deliverOffer(id);
 }
 
 export function deliverOffer(id: string): Promise<void> {

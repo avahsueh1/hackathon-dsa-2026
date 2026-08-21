@@ -102,6 +102,8 @@ export interface Offer {
   food_type: string;
   quantity: number;
   notes: string | null;
+  lat: number | null;
+  lng: number | null;
   pickup_from: string;          // ISO
   pickup_to: string;            // ISO
   status: OfferStatus;
@@ -110,6 +112,8 @@ export interface Offer {
   accepted_at: string | null;
   delivered_at: string | null;
   created_at: string;
+  /** Local only: a sample row, never written to the shared board. */
+  demo?: boolean;
 }
 
 export interface NewOffer {
@@ -119,6 +123,8 @@ export interface NewOffer {
   food_type: string;
   quantity: number;
   notes: string | null;
+  lat: number | null;
+  lng: number | null;
   pickup_from: string;
   pickup_to: string;
 }

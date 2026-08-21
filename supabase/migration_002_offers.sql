@@ -31,6 +31,13 @@ create table if not exists public.offers (
   quantity    numeric not null check (quantity > 0 and quantity <= 5000),
   notes       text,
 
+  -- Where to drive to. Nullable: an address is typed, a pin is optional, and
+  -- an offer without coordinates still works -- it just lists rather than
+  -- showing on the map. Not PostGIS on purpose; two numerics are enough to
+  -- drop a marker and this project has no spatial queries.
+  lat numeric,
+  lng numeric,
+
   -- when it can be collected. A window, not an instant: "between 9 and 10"
   -- is what a kitchen can actually promise at the end of service.
   pickup_from timestamptz not null,

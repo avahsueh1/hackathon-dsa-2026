@@ -133,6 +133,8 @@ export interface OfferRow {
   food_type: string;
   quantity: number;
   notes: string | null;
+  lat: number | null;
+  lng: number | null;
   pickup_from: string;
   pickup_to: string;
   status: "open" | "accepted" | "delivered" | "cancelled";
@@ -165,6 +167,8 @@ export async function insertOffer(o: {
   food_type: string;
   quantity: number;
   notes: string | null;
+  lat: number | null;
+  lng: number | null;
   pickup_from: string;
   pickup_to: string;
 }): Promise<OfferRow> {

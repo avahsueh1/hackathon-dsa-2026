@@ -40,3 +40,12 @@ export function windowLabel(fromIso: string, toIso: string): string {
   };
   return `${hh(f)}-${hh(t)}`;
 }
+
+/** "9p" — a map pin only has room to say roughly when, and six full windows
+ *  written out collide into an unreadable pile over East Village. The list and
+ *  the detail card carry the exact window. */
+export function shortHour(iso: string): string {
+  const d = new Date(iso);
+  const h = d.getHours();
+  return `${h % 12 || 12}${h >= 12 ? "p" : "a"}`;
+}

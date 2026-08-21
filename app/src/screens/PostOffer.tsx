@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Restaurant } from "../types";
 import { postOffer } from "../lib/store";
 import { FOODS, PICKUP_WINDOWS, todayAt } from "../lib/food";
+import { locate } from "../lib/geocode";
 import QuantityStepper from "../components/QuantityStepper";
 import Button from "../components/Button";
 
@@ -54,6 +55,7 @@ export default function PostOffer({ account, onPosted }: Props) {
 
   const needsName = !name.trim();
   const needsAddress = !address.trim();
+  const located = useMemo(() => locate(address), [address]);
 
   async function submit() {
     setSaving(true);
@@ -66,6 +68,11 @@ export default function PostOffer({ account, onPosted }: Props) {
         food_type: food ?? FOODS[0],
         quantity: qty,
         notes: notes.trim() || null,
+        // Resolved from the typed address against the block network the app
+        // already ships. No map for a kitchen to fiddle with, and no pin on
+        // the wrong street when it does not match.
+        lat: located?.lat ?? null,
+        lng: located?.lng ?? null,
         pickup_from: todayAt(win.from),
         pickup_to: todayAt(win.to),
       });
@@ -162,6 +169,14 @@ export default function PostOffer({ account, onPosted }: Props) {
               </span>
             )}
           </div>
+        )}
+
+        {address.trim() !== "" && (
+          <span className={`pick-help${located ? "" : " warn"}`}>
+            {located
+              ? `Drivers will see a pin on ${located.matched.replace(/\w/g, (c) => c.toUpperCase())}.`
+              : "We could not place this on the downtown map — it will still be listed, just without a pin."}
+          </span>
         )}
 
         <div className="pickgroup">
