@@ -54,7 +54,9 @@ export default function BottomSheet({
         aria-modal="true"
         aria-label={label}
         className="sheet"
-        style={{ height: HEIGHTS[snap], ...style }}
+        /* max, not fixed: a short flow hugs its content instead of leaving
+           a stretch of empty panel under the last control. */
+        style={{ maxHeight: HEIGHTS[snap], ...style }}
       >
         <button
           type="button"

@@ -147,6 +147,14 @@ body {
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
+
+  /* Leaflet's panes carry z-index 200-1000 of their own. `overflow: auto`
+     makes a scroll container but NOT a stacking context, so those numbers
+     were competing directly with the claim sheet's, in .device's context --
+     and the map won, painting tiles straight through the middle of an open
+     sheet. This confines every z-index inside the scroller to this box, so
+     nothing in a screen can ever out-stack the app's own chrome. */
+  isolation: isolate;
 }
 
 /* --- bottom tab bar ------------------------------------------------------ */
@@ -262,7 +270,7 @@ body {
   left: var(--gutter);
   right: var(--gutter);
   bottom: calc(var(--tap-primary) + var(--s-4));
-  z-index: 60;
+  z-index: 120;
   display: flex;
   justify-content: center;
   pointer-events: none;
