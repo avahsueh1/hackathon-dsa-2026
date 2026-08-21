@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Pickup, ZoneStats } from "../types";
 import { takePickup } from "../lib/store";
-import { ZONES, suggestZones, prettyDistance } from "../lib/zones";
+import { ZONES } from "../lib/zones";
 import { activeRoute, assignToActive } from "../lib/routes";
-import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
 import PickupMap from "../components/PickupMap";
@@ -122,12 +121,6 @@ export default function Pickups({
     return names.length === 1 ? names[0] : `${names.length} zones`;
   }, [route]);
 
-  // Closest zone that still needs food, for whichever pickup is selected.
-  const suggested = useMemo(
-    () => (chosen ? (suggestZones(stats, { lat: chosen.lat, lng: chosen.lng })[0] ?? null) : null),
-    [chosen, stats],
-  );
-
   // A selection the filter just hid would leave the card describing a pickup
   // that is no longer on the map.
   useEffect(() => {
@@ -136,12 +129,12 @@ export default function Pickups({
 
   const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
 
-  async function take(zoneId: string) {
+  async function take() {
     if (!chosen) return;
     if (!volunteer) return onNeedName();
-    setBusy(zoneId);
+    setBusy(chosen.id);
     try {
-      await takePickup(chosen.id, volunteer, zoneId);
+      await takePickup(chosen.id, volunteer);
       // Joins whichever route is open, creating the first one on demand so a
       // driver never has to start a route before they can take anything.
       assignToActive(chosen.id);
@@ -225,31 +218,16 @@ export default function Pickups({
             <span className="zcard-meta open">{chosen.pickup_note}</span>
           )}
 
-          {/* No second question. The suggestion is the closest zone that still
-              needs food, which is the right answer almost every time -- and
-              when it is not, every stop on the route screen has a Change. */}
-          {suggested && (
-            <span className="dropsto">
-              <span className="ss-label pick-label">Drops at</span>
-              <span className="dropsto-zone">{suggested.zone.name}</span>
-              <span className="dropsto-sub">
-                {corner(suggested.zone.landmark.a, suggested.zone.landmark.b)}
-                {suggested.distance != null ? ` · ${prettyDistance(suggested.distance)} away` : ""}
-                {suggested.short > 0 ? ` · ${fmt(suggested.short)} short` : " · already covered"}
-              </span>
-            </span>
-          )}
-
-          <Button
-            fullWidth
-            disabled={!suggested || busy !== null}
-            disabledReason={!suggested ? "No zone needs food right now" : undefined}
-            onClick={() => suggested && void take(suggested.zone.id)}
-          >
+          <Button fullWidth disabled={busy !== null} onClick={() => void take()}>
             {busy ? `Adding to ${activeRoute().label}…` : `Add to ${activeRoute().label}`}
           </Button>
 
-          <span className="pick-help">You can change where it goes on your route.</span>
+          {/* Where it goes is decided once, for the whole load, after the
+              stops are chosen -- you cannot sensibly answer it holding one
+              box and not knowing what else is coming. */}
+          <span className="pick-help">
+            You&rsquo;ll choose where the whole route drops off at the end.
+          </span>
         </div>
       ) : (
         <div className="pickuplist">

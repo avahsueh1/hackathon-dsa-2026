@@ -389,21 +389,30 @@ async function write(id: string, patch: Record<string, unknown>): Promise<void> 
 }
 
 /**
- * A volunteer takes a pickup AND says where it is going, in one move.
+ * A volunteer takes a pickup. No destination yet -- that is decided once, for
+ * the whole route, after the stops are chosen.
  *
- * status 'claimed' rather than 'accepted' on purpose: their trigger counts
- * 'claimed' and 'delivered', so writing the zone and this status together is
- * what makes a zone's coverage move at pickup time -- which is what the
- * product wants -- with no change to the backend. An 'accepted' row carrying
- * a zone would be invisible to coverage until drop-off.
+ * 'accepted' is exactly the backend's word for this state: a volunteer has it
+ * and no zone is chosen. Their trigger counts 'claimed' and 'delivered', so an
+ * accepted row correctly contributes nothing to coverage: food with no
+ * destination is not covering anything yet.
  */
-export function takePickup(id: string, volunteer: string, zoneId: string): Promise<void> {
-  return write(id, { status: "claimed", volunteer_name: volunteer, zone_id: zoneId });
+export function takePickup(id: string, volunteer: string): Promise<void> {
+  return write(id, { status: "accepted", volunteer_name: volunteer, zone_id: null });
+}
+
+/**
+ * Where the whole load is going. This is the moment the food starts counting
+ * towards a zone -- writing zone_id and 'claimed' together is what their
+ * trigger picks up.
+ */
+export async function setRouteDestination(ids: string[], zoneId: string): Promise<void> {
+  for (const id of ids) await write(id, { status: "claimed", zone_id: zoneId });
 }
 
 /** Change your mind about the destination while still holding the food. */
 export function reroutePickup(id: string, zoneId: string): Promise<void> {
-  return write(id, { zone_id: zoneId });
+  return write(id, { zone_id: zoneId, status: "claimed" });
 }
 
 export function deliverPickup(id: string, note?: string): Promise<void> {
@@ -416,6 +425,11 @@ export function deliverPickup(id: string, note?: string): Promise<void> {
 /** Handing a run back: it returns to the feed for someone else. */
 export function releasePickup(id: string): Promise<void> {
   return write(id, { status: "requested", volunteer_name: null, zone_id: null });
+}
+
+/** Is this pickup on somebody's route, destination decided or not? */
+export function onARoute(p: Pickup): boolean {
+  return p.status === "accepted" || p.status === "claimed";
 }
 
 /** No DELETE policy, by design -- withdrawing keeps the row for the log. */
