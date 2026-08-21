@@ -80,6 +80,31 @@ One gotcha: the stylesheet is global and single-file. A class name collision is
 silent — `.bar` was already the map controls row, and reusing it collapsed the
 comparison bars to zero width. Prefix new classes.
 
+## Connecting a backend
+
+Claims are the only dynamic thing in the app, and every read and write goes
+through one object exposed as `window.SurplusStore`. With no adapter it uses
+`localStorage` and works offline; give it an adapter and it talks to a server:
+
+```js
+window.SurplusStore.adapter = { list, insert, update, remove, subscribe };
+window.SurplusStore.init();
+```
+
+Reads are synchronous against an in-memory cache so the render path never has
+to become async; writes are optimistic and repaint immediately. Realtime pushes
+into the same repaint path, so another restaurant's claim lands exactly like
+one of your own — verified against a stub backend with artificial latency.
+
+**Do not put the reference data in the database.** Zones, block geometry,
+shelters and the siting plan are 872 KB of static output from `scripts/`; they
+change when someone ingests a new count, not minute to minute.
+
+[`docs/BACKEND.md`](docs/BACKEND.md) has the adapter contract, a working
+Supabase implementation and the three things to agree on first.
+[`supabase/schema.sql`](supabase/schema.sql) has the table, the realtime
+publication and the row-level security policies.
+
 ## Honest limits
 
 - **Claims are stored in this browser** (`localStorage`). That demonstrates the

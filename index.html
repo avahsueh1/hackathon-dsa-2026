@@ -3465,23 +3465,93 @@ var ZONES = DATA.zones;
 var CLAIM_KEY = "surplus-street-claims-v1";
 var MEAL_QUICK = [10, 25, 50, 100];
 
-function loadClaims() {
-  try {
-    return JSON.parse(localStorage.getItem(CLAIM_KEY) || "[]");
-  } catch (e) {
-    return [];
-  }
-}
+// -------------------------------------------------------------- the store
+// Everything that reads or writes a claim goes through here, so a real
+// backend is an adapter rather than a rewrite. See docs/BACKEND.md.
+//
+// The awkward part of putting Supabase behind this is that the UI renders
+// synchronously and Supabase is promise-based. So the store keeps an
+// in-memory cache: reads are synchronous against the cache, writes are
+// asynchronous against the adapter and then refresh the cache. That way the
+// render path never has to know a network exists, and adding a backend does
+// not turn every call site into an async function.
+//
+// To go live, set Store.adapter (see the shape below) and call Store.init().
 
-function saveClaims(list) {
-  try {
-    localStorage.setItem(CLAIM_KEY, JSON.stringify(list));
-  } catch (e) {
-    // Private browsing, or storage full. The session still works; it just
-    // will not survive a reload, and saying so beats failing silently.
-    console.warn("claims could not be saved:", e);
+var Store = {
+  cache: [],
+  adapter: null,        // null = this browser only
+  onChange: null,       // set by the UI; also what realtime pushes into
+
+  // An adapter implements:
+  //   list()             -> Promise<claim[]>
+  //   insert(claim)      -> Promise
+  //   update(id, patch)  -> Promise
+  //   remove(id)         -> Promise
+  //   clear()            -> Promise            (demo convenience, optional)
+  //   subscribe(fn)      -> void               (optional; realtime)
+
+  init: function () {
+    if (!Store.adapter) {
+      try {
+        Store.cache = JSON.parse(localStorage.getItem(CLAIM_KEY) || "[]");
+      } catch (e) {
+        Store.cache = [];
+      }
+      return Promise.resolve(Store.cache);
+    }
+    if (Store.adapter.subscribe) {
+      // Realtime is the whole product: another restaurant claims a zone and
+      // this screen has to show it without a refresh.
+      Store.adapter.subscribe(function () { Store.refresh(); });
+    }
+    return Store.refresh();
+  },
+
+  refresh: function () {
+    if (!Store.adapter) return Promise.resolve(Store.cache);
+    return Store.adapter.list().then(function (rows) {
+      Store.cache = rows || [];
+      if (Store.onChange) Store.onChange();
+      return Store.cache;
+    }).catch(function (err) {
+      // A dead backend must not blank the screen mid-service.
+      console.warn("could not load claims:", err);
+      return Store.cache;
+    });
+  },
+
+  read: function () { return Store.cache; },
+
+  // Optimistic: update the cache and repaint first, then persist. A claim
+  // that fails to save is worse than one that appears instantly, but a
+  // button that does nothing for 400ms at closing time is worse than both.
+  write: function (list, op) {
+    Store.cache = list;
+    if (Store.onChange) Store.onChange();
+    if (!Store.adapter) {
+      try {
+        localStorage.setItem(CLAIM_KEY, JSON.stringify(list));
+      } catch (e) {
+        console.warn("claims could not be saved:", e);
+      }
+      return Promise.resolve();
+    }
+    var p = op ? op(Store.adapter) : Store.adapter.replaceAll(list);
+    return p.catch(function (err) {
+      console.warn("claim did not save:", err);
+      return Store.refresh();
+    });
   }
-}
+};
+
+// The whole app is inside an IIFE, so the store has to be handed out
+// deliberately -- otherwise a backend has no way to attach an adapter.
+window.SurplusStore = Store;
+
+function loadClaims() { return Store.read(); }
+
+function saveClaims(list, op) { return Store.write(list, op); }
 
 function claimsFor(zoneId) {
   return loadClaims().filter(function (c) {
@@ -3734,9 +3804,9 @@ document.getElementById("claim-confirm").addEventListener("click", function () {
     date: todayStamp(),
     status: "claimed"
   });
-  saveClaims(list);
+  var added = list[list.length - 1];
+  saveClaims(list, function (a) { return a.insert(added); });
   closeClaim();
-  renderTonight();
 });
 
 // ------------------------------------------------------ my drops + SB 1383
@@ -3778,17 +3848,17 @@ function renderDrops() {
 
   Array.prototype.forEach.call(document.querySelectorAll("[data-deliver]"), function (b) {
     b.addEventListener("click", function () {
-      var all = loadClaims();
+      var all = loadClaims().slice();
       all.forEach(function (c) { if (c.id === b.dataset.deliver) c.status = "delivered"; });
-      saveClaims(all);
-      renderTonight();
+      saveClaims(all, function (a) {
+        return a.update(b.dataset.deliver, { status: "delivered" });
+      });
     });
   });
   Array.prototype.forEach.call(document.querySelectorAll("[data-drop]"), function (b) {
     b.addEventListener("click", function () {
       var all = loadClaims().filter(function (c) { return c.id !== b.dataset.drop; });
-      saveClaims(all);
-      renderTonight();
+      saveClaims(all, function (a) { return a.remove(b.dataset.drop); });
     });
   });
 }
@@ -3833,9 +3903,8 @@ document.getElementById("show-csv").addEventListener("click", function () {
 });
 
 document.getElementById("clear-drops").addEventListener("click", function () {
-  saveClaims([]);
+  saveClaims([], function (a) { return a.clear(); });
   document.getElementById("csv-out").hidden = true;
-  renderTonight();
 });
 
 document.getElementById("privacy-more").addEventListener("click", function (e) {
@@ -3843,7 +3912,10 @@ document.getElementById("privacy-more").addEventListener("click", function (e) {
   alert(ZONES ? ZONES.privacy : "Zone-level only.");
 });
 
-if (ZONES) renderTonight();
+// One repaint path. The store calls this after any change, including one
+// pushed in by realtime from another restaurant.
+Store.onChange = function () { if (ZONES) renderTonight(); };
+Store.init().then(function () { if (ZONES) renderTonight(); });
 
 // Deep link so a tab can be shared: index.html#plan
 var initial = location.hash.slice(1);
