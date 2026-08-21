@@ -26,7 +26,7 @@ const TITLES: Record<Tab, string> = {
 };
 
 export default function App() {
-  const { offers, stats, ready, live, offersShared, error } = useBoard();
+  const { pickups, stats, ready, live, detailsShared, error } = useBoard();
   const account = useAccount();
   const role = useRole();
 
@@ -104,8 +104,8 @@ export default function App() {
     ? error
     : !hasBackend
       ? "This browser only · downtown San Diego"
-      : !offersShared
-        ? "Zones live · offers on this device"
+      : !detailsShared
+        ? "Live board · pickup details on this device"
         : live
           ? "Live board · downtown San Diego"
           : "Connected · downtown San Diego";
@@ -134,7 +134,7 @@ export default function App() {
 
         {safeTab === "log" && (
           <RestaurantLog
-            offers={offers}
+            pickups={pickups}
             mine={account?.name ?? null}
             onPost={() => setTab("post")}
           />
@@ -142,7 +142,8 @@ export default function App() {
 
         {safeTab === "pickups" && (
           <Pickups
-            offers={offers}
+            pickups={pickups}
+            stats={stats}
             volunteer={account?.name ?? null}
             onAccepted={() => setToast("Added to your route")}
             onNeedName={() => {
@@ -155,7 +156,7 @@ export default function App() {
 
         {safeTab === "run" && (
           <MyRun
-            offers={offers}
+            pickups={pickups}
             stats={stats}
             volunteer={account?.name ?? null}
             onFindWork={() => setTab("pickups")}

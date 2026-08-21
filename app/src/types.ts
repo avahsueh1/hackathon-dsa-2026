@@ -87,46 +87,52 @@ export interface ZoneStat {
 
 export type ZoneStats = Record<string, ZoneStat>;
 
-// ------------------------------------------------------------------ offers
-// A restaurant posts what it has and when it can be collected. A volunteer
-// collects it and decides which zone it goes to -- so food exists before it
-// has a destination, and zone_id is null until the drop-off.
+// ----------------------------------------------------------------- pickups
+// One row of the backend's `claims` table on the volunteer path:
+//   requested -> claimed (a volunteer has it and has chosen a zone)
+//              -> delivered
+// Their vocabulary, not ours. 'accepted' exists in their schema but this app
+// never writes it -- see takePickup() in lib/store.ts for why.
+//
+// The fields below the line are not columns yet. They come from
+// migration_003_pickup_details.sql, and until it runs they are filled from a
+// local store keyed by claim id.
 
-export type OfferStatus = "open" | "accepted" | "delivered" | "cancelled";
+export type PickupStatus = "requested" | "accepted" | "claimed" | "delivered" | "cancelled";
 
-export interface Offer {
+export interface Pickup {
   id: string;
   restaurant_name: string;
-  address: string;
-  contact: string | null;
-  food_type: string;
   quantity: number;
-  notes: string | null;
-  lat: number | null;
-  lng: number | null;
-  pickup_from: string;          // ISO
-  pickup_to: string;            // ISO
-  status: OfferStatus;
+  status: PickupStatus;
   volunteer_name: string | null;
   zone_id: string | null;
-  accepted_at: string | null;
-  delivered_at: string | null;
+  drop_location_note: string | null;
   created_at: string;
+
+  // ---- pending migration_003
+  address: string;
+  lat: number | null;
+  lng: number | null;
+  food_type: string;
+  pickup_from: string;
+  pickup_to: string;
+  pickup_note: string | null;
+
   /** Local only: a sample row, never written to the shared board. */
   demo?: boolean;
 }
 
-export interface NewOffer {
+export interface NewPickup {
   restaurant_name: string;
-  address: string;
-  contact: string | null;
-  food_type: string;
   quantity: number;
-  notes: string | null;
+  address: string;
   lat: number | null;
   lng: number | null;
+  food_type: string;
   pickup_from: string;
   pickup_to: string;
+  pickup_note: string | null;
 }
 
 // --------------------------------------------------------------------- role

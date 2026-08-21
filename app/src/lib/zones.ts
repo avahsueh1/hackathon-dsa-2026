@@ -117,3 +117,60 @@ export function downtownBounds(): [[number, number], [number, number]] {
     [n, e],
   ];
 }
+
+// ------------------------------------------------------------- suggestions
+
+/** Metres between two lat/lng, near enough. Equirectangular with a cos(lat)
+ *  correction: over a few km of downtown the error is centimetres, and it
+ *  costs one cosine instead of a haversine. */
+function metres(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371000;
+  const kx = Math.cos(((aLat + bLat) / 2) * (Math.PI / 180));
+  const dx = (bLng - aLng) * (Math.PI / 180) * kx;
+  const dy = (bLat - aLat) * (Math.PI / 180);
+  return Math.sqrt(dx * dx + dy * dy) * R;
+}
+
+export interface ZoneSuggestion {
+  zone: Zone;
+  /** Straight-line metres from the pickup, or null if we have no pin. */
+  distance: number | null;
+  short: number;
+}
+
+/**
+ * Where to take this food, best first.
+ *
+ * Ranked by need, then broken by distance -- a driver standing in Little Italy
+ * should not be sent to Barrio Logan for six more meals of coverage. Zones
+ * that are already covered sink to the bottom whatever their distance.
+ */
+export function suggestZones(
+  stats: ZoneStats,
+  from: { lat: number | null; lng: number | null },
+): ZoneSuggestion[] {
+  const has = from.lat != null && from.lng != null;
+
+  return ZONES.zones
+    .map((zone) => ({
+      zone,
+      short: stillNeeded(stats, zone),
+      distance: has
+        ? metres(from.lat as number, from.lng as number, zone.centroid[1], zone.centroid[0])
+        : null,
+    }))
+    .sort((a, b) => {
+      const ac = a.short <= 0;
+      const bc = b.short <= 0;
+      if (ac !== bc) return ac ? 1 : -1;
+      if (a.distance == null || b.distance == null) return b.short - a.short;
+      // Need per kilometre driven: 300 meals eight blocks away beats 320 a
+      // mile away, and the driver still gets sent where it matters.
+      return b.short / Math.max(400, b.distance) - a.short / Math.max(400, a.distance);
+    });
+}
+
+export function prettyDistance(m: number | null): string {
+  if (m == null) return "";
+  return m < 950 ? `${Math.round(m / 10) * 10} m` : `${(m / 1000).toFixed(1)} km`;
+}

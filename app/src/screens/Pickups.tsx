@@ -1,75 +1,104 @@
 import { useEffect, useMemo, useState } from "react";
-import type { Offer } from "../types";
-import { acceptOffer } from "../lib/store";
+import type { Pickup, ZoneStats } from "../types";
+import { takePickup } from "../lib/store";
+import { suggestZones, prettyDistance } from "../lib/zones";
+import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
 import PickupMap from "../components/PickupMap";
+import ProgressRing from "../components/ProgressRing";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
 
 /**
- * The volunteer's feed: where food is ready, and when.
+ * Where food is ready, and where it should go.
  *
  * Map first, list underneath. A pickup is a place you have to drive to, and a
- * list of addresses does not tell you which ones are on your way; four pings
- * on a map does. The zone is deliberately absent -- you collect first and
- * decide where it goes afterwards, once you know what is still short.
+ * list of addresses does not tell you which ones are on your way; pings on a
+ * map do.
+ *
+ * Choosing the drop-off happens HERE, at pickup, not at delivery. Two reasons:
+ * the zone's coverage moves the moment the food is spoken for, so no second
+ * driver duplicates the run; and someone collecting in Little Italy wants to
+ * know where it is going before they put it in the car, not after.
  */
 
 type When = "any" | "soon" | "later";
 
 interface Props {
-  offers: Offer[];
+  pickups: Pickup[];
+  stats: ZoneStats;
   volunteer: string | null;
   onAccepted: () => void;
   onNeedName: () => void;
   onOpenRoute: () => void;
 }
 
-export default function Pickups({ offers, volunteer, onAccepted, onNeedName, onOpenRoute }: Props) {
+export default function Pickups({
+  pickups,
+  stats,
+  volunteer,
+  onAccepted,
+  onNeedName,
+  onOpenRoute,
+}: Props) {
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
+  const [zoneId, setZoneId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const open = useMemo(() => {
     const soonCutoff = Date.now() + 2 * 60 * 60 * 1000;
-    return offers
-      .filter((o) => o.status === "open")
-      .filter((o) => {
+    return pickups
+      .filter((p) => p.status === "requested")
+      .filter((p) => {
         if (when === "any") return true;
-        const from = new Date(o.pickup_from).getTime();
+        const from = new Date(p.pickup_from).getTime();
         return when === "soon" ? from <= soonCutoff : from > soonCutoff;
       })
       .sort((a, b) => a.pickup_from.localeCompare(b.pickup_from));
-  }, [offers, when]);
+  }, [pickups, when]);
 
-  // A selection that the filter just hid would leave the card showing a run
-  // you cannot see on the map.
-  useEffect(() => {
-    if (selected && !open.some((o) => o.id === selected)) setSelected(null);
-  }, [open, selected]);
-
-  const totalMeals = open.reduce((a, o) => a + o.quantity, 0);
-  const chosen = open.find((o) => o.id === selected) ?? null;
-
-  // What is already on this driver's route, so the map can show both and the
-  // bar can offer a way back to it.
   const route = useMemo(
     () =>
-      offers.filter(
-        (o) => o.status === "accepted" && (!volunteer || o.volunteer_name === volunteer),
+      pickups.filter(
+        (p) => p.status === "claimed" && (!volunteer || p.volunteer_name === volunteer),
       ),
-    [offers, volunteer],
+    [pickups, volunteer],
   );
 
-  async function take(o: Offer) {
+  const chosen = open.find((p) => p.id === selected) ?? null;
+
+  // Closest-and-shortest first, recomputed for whichever pickup is selected.
+  const suggestions = useMemo(
+    () => (chosen ? suggestZones(stats, { lat: chosen.lat, lng: chosen.lng }).slice(0, 4) : []),
+    [chosen, stats],
+  );
+
+  // A selection the filter just hid would leave the card describing a pickup
+  // that is no longer on the map.
+  useEffect(() => {
+    if (selected && !open.some((p) => p.id === selected)) setSelected(null);
+  }, [open, selected]);
+
+  // Default to the suggestion, and never carry the previous pickup's choice
+  // over to the next one.
+  useEffect(() => {
+    setZoneId(suggestions[0]?.zone.id ?? null);
+  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
+
+  async function take() {
+    if (!chosen || !zoneId) return;
     if (!volunteer) return onNeedName();
-    setBusy(o.id);
+    setBusy(true);
     try {
-      await acceptOffer(o.id, volunteer);
+      await takePickup(chosen.id, volunteer, zoneId);
+      setSelected(null);
       onAccepted();
     } finally {
-      setBusy(null);
+      setBusy(false);
     }
   }
 
@@ -94,17 +123,17 @@ export default function Pickups({ offers, volunteer, onAccepted, onNeedName, onO
       </div>
 
       <PickupMap
-        offers={open}
+        pickups={open}
         route={route}
         selectedId={selected}
         onSelect={(id) => setSelected((prev) => (prev === id ? null : id))}
       />
 
-      {route.length > 0 && (
+      {route.length > 0 && !chosen && (
         <button type="button" className="routebar" onClick={onOpenRoute}>
           <span className="ss-label">
             ▸ {route.length} {plural(route.length, "stop")} on your route ·{" "}
-            {fmt(route.reduce((a, o) => a + o.quantity, 0))} meals
+            {fmt(route.reduce((a, p) => a + p.quantity, 0))} meals
           </span>
           <span className="routebar-go">Open</span>
         </button>
@@ -124,11 +153,11 @@ export default function Pickups({ offers, volunteer, onAccepted, onNeedName, onO
           />
         </div>
       ) : chosen ? (
-        // The selected ping, in the sheet position: one run, all of it, and
-        // the action.
         <div className="pickupcard">
           <div className="pickupcard-top">
-            <span className="ss-label pickup-when">◷ {windowLabel(chosen.pickup_from, chosen.pickup_to)}</span>
+            <span className="ss-label pickup-when">
+              ◷ {windowLabel(chosen.pickup_from, chosen.pickup_to)}
+            </span>
             <span className="ss-num zcard-need">~{fmt(chosen.quantity)} meals</span>
           </div>
           <span className="pickupcard-name">
@@ -138,38 +167,73 @@ export default function Pickups({ offers, volunteer, onAccepted, onNeedName, onO
           <span className="zcard-sub">{chosen.address}</span>
           <span className="zcard-meta open">
             {chosen.food_type}
-            {chosen.notes ? ` · ${chosen.notes}` : ""}
+            {chosen.pickup_note ? ` · ${chosen.pickup_note}` : ""}
           </span>
-          <Button fullWidth disabled={busy === chosen.id} onClick={() => void take(chosen)}>
-            {busy === chosen.id
-              ? "Adding…"
-              : route.length > 0
-                ? "Add this stop to my route"
-                : "Start a route here"}
+
+          <span className="ss-label pick-label dropq">Where do you want to drop it off?</span>
+
+          <div className="dropchoices">
+            {suggestions.map((s, i) => {
+              const on = zoneId === s.zone.id;
+              return (
+                <button
+                  key={s.zone.id}
+                  type="button"
+                  className={`runzone${on ? " on" : ""}`}
+                  onClick={() => setZoneId(s.zone.id)}
+                >
+                  <ProgressRing
+                    value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
+                    covered={s.short <= 0}
+                    size={32}
+                  />
+                  <span className="runzone-text">
+                    <span className="runzone-name">
+                      {s.zone.name}
+                      {i === 0 && <span className="nearesttag">Suggested</span>}
+                    </span>
+                    <span className="runzone-sub">
+                      {corner(s.zone.landmark.a, s.zone.landmark.b)}
+                      {s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""}
+                      {s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}
+                    </span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <Button
+            fullWidth
+            disabled={!zoneId || busy}
+            disabledReason={!zoneId ? "Pick where it goes first" : undefined}
+            onClick={() => void take()}
+          >
+            {busy ? "Adding…" : "Add to my route"}
           </Button>
         </div>
       ) : (
         <div className="pickuplist">
-          {open.map((o) => (
+          {open.map((p) => (
             <button
-              key={o.id}
+              key={p.id}
               type="button"
               className="pickuprow"
-              onClick={() => setSelected(o.id)}
+              onClick={() => setSelected(p.id)}
             >
               <span className="ss-label pickup-when">
-                {windowLabel(o.pickup_from, o.pickup_to)}
+                {windowLabel(p.pickup_from, p.pickup_to)}
               </span>
               <span className="pickuprow-text">
                 <span className="pickuprow-name">
-                  {o.restaurant_name}
-                  {o.demo && <span className="demotag">Sample</span>}
+                  {p.restaurant_name}
+                  {p.demo && <span className="demotag">Sample</span>}
                 </span>
                 <span className="pickuprow-sub">
-                  {o.food_type} · {o.address}
+                  {p.food_type} · {p.address}
                 </span>
               </span>
-              <span className="ss-num pickuprow-qty">~{fmt(o.quantity)}</span>
+              <span className="ss-num pickuprow-qty">~{fmt(p.quantity)}</span>
             </button>
           ))}
         </div>

@@ -10,7 +10,7 @@
 // to mark the card. Coordinates are real downtown San Diego addresses so the
 // pins land where the streets actually are.
 
-import type { Offer } from "../types";
+import type { Pickup } from "../types";
 import { todayAt } from "./food";
 
 interface Seed {
@@ -82,25 +82,23 @@ const SEEDS: Seed[] = [
   },
 ];
 
-export function demoOffers(): Offer[] {
+export function demoPickups(): Pickup[] {
   const stamp = new Date().toISOString();
   return SEEDS.map((s, i) => ({
     id: `demo-${i + 1}`,
     restaurant_name: s.restaurant_name,
     address: s.address,
-    contact: null,
     food_type: s.food_type,
     quantity: s.quantity,
-    notes: s.notes,
     lat: s.lat,
     lng: s.lng,
     pickup_from: todayAt(s.from),
     pickup_to: todayAt(s.to),
-    status: "open" as const,
+    pickup_note: s.notes,
+    status: "requested" as const,
     volunteer_name: null,
     zone_id: null,
-    accepted_at: null,
-    delivered_at: null,
+    drop_location_note: null,
     created_at: stamp,
     demo: true,
   }));

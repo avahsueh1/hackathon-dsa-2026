@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { Restaurant } from "../types";
-import { postOffer } from "../lib/store";
+import { postPickup } from "../lib/store";
 import { FOODS, PICKUP_WINDOWS, todayAt } from "../lib/food";
 import { locate } from "../lib/geocode";
 import QuantityStepper from "../components/QuantityStepper";
@@ -61,13 +61,12 @@ export default function PostOffer({ account, onPosted }: Props) {
     setSaving(true);
     setErr(null);
     try {
-      await postOffer({
+      await postPickup({
         restaurant_name: name.trim(),
         address: address.trim(),
-        contact: account?.phone ?? account?.email ?? null,
         food_type: food ?? FOODS[0],
         quantity: qty,
-        notes: notes.trim() || null,
+        pickup_note: notes.trim() || null,
         // Resolved from the typed address against the block network the app
         // already ships. No map for a kitchen to fiddle with, and no pin on
         // the wrong street when it does not match.

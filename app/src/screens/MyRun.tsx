@@ -1,64 +1,52 @@
 import { useMemo, useState } from "react";
-import type { Offer, ZoneStats } from "../types";
-import { deliverAll, releaseOffer, routeAll } from "../lib/store";
-import { ZONES, byUrgency, isCovered, stillNeeded } from "../lib/zones";
+import type { Pickup, ZoneStats } from "../types";
+import { deliverPickup, releasePickup, reroutePickup } from "../lib/store";
+import { ZONES, suggestZones, prettyDistance } from "../lib/zones";
 import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
-import ZoneMap from "../components/ZoneMap";
 import PickupMap from "../components/PickupMap";
-import ProgressRing from "../components/ProgressRing";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
 
 /**
- * The route: every stop you have taken, in the order you would drive them,
- * and then one decision about where the whole load goes.
+ * The route: every stop you have taken, in the order you would drive them.
  *
- * That last decision is the reason the product is split in two -- a kitchen
- * cannot know which corner is short at 10pm, but someone holding the food and
- * looking at the map can. Zones are ordered by what they still need, so the
- * obvious answer is at the top and the map is for when it is not obvious.
- *
- * One zone per route on purpose. A driver fills the car and empties it;
- * splitting a load across neighbourhoods is a second route, not a second
- * field on this screen.
+ * Each stop already knows where it is going -- that was chosen at pickup, and
+ * the zone has been counting the food ever since. This screen is for driving
+ * it: collect, drop, mark it done. Changing your mind is possible per stop,
+ * because a zone can fill up while you are still on the road.
  */
 
-const ZONE_NAME = new Map(ZONES.zones.map((z) => [z.id, z.name]));
+const ZONE = new Map(ZONES.zones.map((z) => [z.id, z]));
 
 interface Props {
-  offers: Offer[];
+  pickups: Pickup[];
   stats: ZoneStats;
   volunteer: string | null;
   onFindWork: () => void;
 }
 
-export default function MyRun({ offers, stats, volunteer, onFindWork }: Props) {
-  const [busy, setBusy] = useState(false);
-  const [showZoneMap, setShowZoneMap] = useState(false);
+export default function MyRun({ pickups, stats, volunteer, onFindWork }: Props) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [rerouting, setRerouting] = useState<string | null>(null);
 
   const stops = useMemo(
     () =>
-      offers
-        .filter((o) => o.status === "accepted" && (!volunteer || o.volunteer_name === volunteer))
+      pickups
+        .filter((p) => p.status === "claimed" && (!volunteer || p.volunteer_name === volunteer))
         .sort((a, b) => a.pickup_from.localeCompare(b.pickup_from)),
-    [offers, volunteer],
+    [pickups, volunteer],
   );
 
-  const load = stops.reduce((a, o) => a + o.quantity, 0);
-  const ranked = useMemo(() => byUrgency(stats, ZONES.zones), [stats]);
-
-  // Any stop already routed sets the destination for the run.
-  const zoneId = stops.find((o) => o.zone_id)?.zone_id ?? null;
-  const chosen = zoneId ? (ZONES.zones.find((z) => z.id === zoneId) ?? null) : null;
+  const load = stops.reduce((a, p) => a + p.quantity, 0);
 
   if (stops.length === 0) {
     return (
       <div className="dropempty">
         <EmptyState
           headline="No route yet."
-          detail="Add stops from the Pickups map and they appear here, in the order you would drive them."
+          detail="Take a pickup from the map and it appears here, with where it is going already decided."
           actionLabel="Find pickups"
           onAction={onFindWork}
         />
@@ -75,112 +63,101 @@ export default function MyRun({ offers, stats, volunteer, onFindWork }: Props) {
         </span>
       </div>
 
-      <PickupMap offers={[]} route={stops} selectedId={null} onSelect={() => {}} />
+      <PickupMap pickups={[]} route={stops} selectedId={null} onSelect={() => {}} />
 
       <div className="stoplist">
-        {stops.map((o, i) => (
-          <div key={o.id} className="stoprow">
-            <span className="stopnum">{i + 1}</span>
-            <span className="stoprow-text">
-              <span className="stoprow-name">{o.restaurant_name}</span>
-              <span className="stoprow-sub">
-                {windowLabel(o.pickup_from, o.pickup_to)} · {o.address}
-              </span>
-              {o.notes && <span className="stoprow-sub">{o.notes}</span>}
-            </span>
-            <span className="ss-num stoprow-qty">~{fmt(o.quantity)}</span>
-            <Button variant="quiet" size="md" onClick={() => void releaseOffer(o.id)}>
-              Drop
-            </Button>
-          </div>
-        ))}
-        <Button variant="secondary" size="md" fullWidth onClick={onFindWork}>
-          Add another stop
-        </Button>
-      </div>
+        {stops.map((p, i) => {
+          const zone = p.zone_id ? ZONE.get(p.zone_id) : null;
+          const open = rerouting === p.id;
+          const options = open
+            ? suggestZones(stats, { lat: p.lat, lng: p.lng }).slice(0, 4)
+            : [];
 
-      <div className="runpick">
-        <span className="ss-label pick-label">
-          {chosen ? "Dropping the whole load at" : "Where does it all go? Most short first."}
-        </span>
-      </div>
-
-      <div className="runzones">
-        {ranked.slice(0, 4).map((z) => {
-          const short = stillNeeded(stats, z);
-          const on = zoneId === z.id;
           return (
-            <button
-              key={z.id}
-              type="button"
-              className={`runzone${on ? " on" : ""}`}
-              onClick={() => void routeAll(stops.map((s) => s.id), z.id)}
-            >
-              {/* How far THIS load goes towards that zone's remaining need --
-                  the number that says where the car matters most. */}
-              <ProgressRing
-                value={short <= 0 ? 1 : Math.min(1, load / short)}
-                covered={isCovered(stats, z)}
-                size={34}
-              />
-              <span className="runzone-text">
-                <span className="runzone-name">{z.name}</span>
-                <span className="runzone-sub">
-                  {corner(z.landmark.a, z.landmark.b)} ·{" "}
-                  {short > 0
-                    ? `${fmt(short)} short · your load covers ${Math.min(100, Math.round((load / short) * 100))}%`
-                    : "already covered"}
+            <div key={p.id} className="stopcard">
+              <div className="stoprow">
+                <span className="stopnum">{i + 1}</span>
+                <span className="stoprow-text">
+                  <span className="stoprow-name">{p.restaurant_name}</span>
+                  <span className="stoprow-sub">
+                    {windowLabel(p.pickup_from, p.pickup_to)} · {p.address}
+                  </span>
+                  {p.pickup_note && <span className="stoprow-sub">{p.pickup_note}</span>}
                 </span>
-              </span>
-            </button>
+                <span className="ss-num stoprow-qty">~{fmt(p.quantity)}</span>
+              </div>
+
+              <div className="stopdrop">
+                <span className="stopdrop-text">
+                  <span className="ss-label pick-label">Dropping at</span>
+                  <span className="stopdrop-zone">{zone ? zone.name : "not chosen"}</span>
+                </span>
+                <Button
+                  variant="quiet"
+                  size="md"
+                  onClick={() => setRerouting(open ? null : p.id)}
+                >
+                  {open ? "Keep" : "Change"}
+                </Button>
+              </div>
+
+              {open && (
+                <div className="dropchoices">
+                  {options.map((s) => (
+                    <button
+                      key={s.zone.id}
+                      type="button"
+                      className={`runzone${p.zone_id === s.zone.id ? " on" : ""}`}
+                      onClick={() => {
+                        void reroutePickup(p.id, s.zone.id);
+                        setRerouting(null);
+                      }}
+                    >
+                      <span className="runzone-text">
+                        <span className="runzone-name">{s.zone.name}</span>
+                        <span className="runzone-sub">
+                          {corner(s.zone.landmark.a, s.zone.landmark.b)}
+                          {s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""}
+                          {s.short > 0 ? ` · ${fmt(s.short)} short` : " · covered"}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="stopactions">
+                <Button
+                  variant="covered"
+                  size="md"
+                  disabled={busy === p.id}
+                  onClick={async () => {
+                    setBusy(p.id);
+                    try {
+                      await deliverPickup(p.id);
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  {busy === p.id ? "Saving…" : "Dropped off"}
+                </Button>
+                <Button variant="quiet" size="md" onClick={() => void releasePickup(p.id)}>
+                  Hand back
+                </Button>
+              </div>
+            </div>
           );
         })}
 
-        <Button
-          variant="quiet"
-          size="md"
-          fullWidth
-          onClick={() => setShowZoneMap((v) => !v)}
-        >
-          {showZoneMap ? "Hide the zone map" : "See all eight zones on the map"}
+        <Button variant="secondary" size="md" fullWidth onClick={onFindWork}>
+          Add another stop
         </Button>
-      </div>
 
-      {showZoneMap && (
-        <div className="runmap">
-          <ZoneMap
-            zones={ZONES.zones}
-            stats={stats}
-            focus={chosen}
-            onSelect={(id) => void routeAll(stops.map((s) => s.id), id)}
-          />
-        </div>
-      )}
-
-      <div className="runactions">
-        {chosen ? (
-          <Button
-            variant="covered"
-            fullWidth
-            disabled={busy}
-            onClick={async () => {
-              setBusy(true);
-              try {
-                await deliverAll(stops.map((s) => s.id));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            {busy
-              ? "Saving…"
-              : `Delivered ${stops.length} ${plural(stops.length, "stop")} to ${ZONE_NAME.get(chosen.id)}`}
-          </Button>
-        ) : (
-          <Button fullWidth disabled disabledReason="Pick a zone above, or open the map">
-            Choose where the load goes
-          </Button>
-        )}
+        <p className="fineprint">
+          These zones are already counting your food — nobody else will be sent to
+          cover the same corner while you are on the road.
+        </p>
       </div>
     </div>
   );

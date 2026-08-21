@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import type { Offer } from "../types";
-import { cancelOffer } from "../lib/store";
+import type { Pickup } from "../types";
+import { cancelPickup } from "../lib/store";
 import { ZONES } from "../lib/zones";
 import { fmt, plural, prettyDate } from "../lib/format";
 import { LBS_PER_MEAL, windowLabel } from "../lib/food";
@@ -20,24 +20,24 @@ import { Hero } from "../components/MobileShell";
 const ZONE_NAME = new Map(ZONES.zones.map((z) => [z.id, z.name]));
 
 interface Props {
-  offers: Offer[];
+  pickups: Pickup[];
   mine: string | null;
   onPost: () => void;
 }
 
-export default function RestaurantLog({ offers, mine, onPost }: Props) {
+export default function RestaurantLog({ pickups, mine, onPost }: Props) {
   const [exported, setExported] = useState(false);
 
   const rows = useMemo(
-    () => (mine ? offers.filter((o) => o.restaurant_name === mine) : offers),
-    [offers, mine],
+    () => (mine ? pickups.filter((o) => o.restaurant_name === mine) : pickups),
+    [pickups, mine],
   );
 
   // Only food that actually went out counts as donated.
   const delivered = rows.filter((o) => o.status === "delivered");
   const meals = delivered.reduce((a, o) => a + o.quantity, 0);
   const lbs = Math.round(meals * LBS_PER_MEAL);
-  const pending = rows.filter((o) => o.status === "open" || o.status === "accepted").length;
+  const pending = rows.filter((o) => o.status === "requested" || o.status === "claimed").length;
 
   function exportCsv() {
     const header = [
@@ -112,19 +112,19 @@ export default function RestaurantLog({ offers, mine, onPost }: Props) {
 
               <div className="droprow-actions">
                 <StatusPill
-                  status={o.status === "delivered" ? "covered" : o.status === "accepted" ? "unconfirmed" : "open"}
+                  status={o.status === "delivered" ? "covered" : o.status === "claimed" ? "unconfirmed" : "open"}
                 >
                   {o.status === "delivered"
                     ? "Delivered"
-                    : o.status === "accepted"
-                      ? "Being collected"
+                    : o.status === "claimed"
+                      ? `${o.volunteer_name ?? "A volunteer"} is collecting`
                       : o.status === "cancelled"
                         ? "Withdrawn"
                         : "Waiting for a volunteer"}
                 </StatusPill>
 
-                {o.status === "open" && (
-                  <Button variant="danger" size="md" onClick={() => void cancelOffer(o.id)}>
+                {o.status === "requested" && (
+                  <Button variant="danger" size="md" onClick={() => void cancelPickup(o.id)}>
                     Withdraw
                   </Button>
                 )}

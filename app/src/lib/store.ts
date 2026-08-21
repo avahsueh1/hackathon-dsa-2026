@@ -1,64 +1,64 @@
-// The board: tonight's claims and each zone's coverage.
+// The board: tonight's pickups and each zone's coverage.
 //
-// Two sources, one shape. Connected, claims come from their `claims` table and
-// coverage comes from the generated `coverage_pct` / `coverage_status` columns
-// on `zones`. Offline, both are derived from localStorage. Components read
-// through useBoard() and never learn which one is running.
+// One shape, two sources. Connected, everything comes from the backend's
+// `claims` table and coverage comes from the generated coverage_pct /
+// coverage_status columns on `zones`. Offline, both are derived from
+// localStorage. Components read through useBoard() and never learn which.
 //
 // Why coverage is read rather than recomputed: their trigger sums only claims
 // created since app_state.current_service_night_started_at, and app_state is
 // RLS-locked with no policies. A client-side sum could not agree with the
 // server's idea of "tonight", and two numbers that disagree at 10pm is worse
 // than one number that comes from one place.
+//
+// The pickup details -- address, coordinates, food type, collection window --
+// have no columns on `claims` yet (see
+// supabase/migration_003_pickup_details.sql). Until that runs they are kept
+// here, keyed by claim id, so the device that typed them still shows them and
+// the shared board still carries the name, the quantity and the zone.
 
 import { useSyncExternalStore } from "react";
 import { hasBackend } from "./supabase";
 import {
   fetchClaims,
-  fetchOffers,
   fetchZones,
-  insertClaim,
-  insertOffer,
-  isMissingTable,
-  patchOffer,
-  setClaimStatus,
+  insertRequest,
+  isMissingColumn,
+  patchClaim,
   subscribeToClaims,
-  subscribeToOffers,
   type ClaimRow,
 } from "./backend";
 import { ZONES } from "./zones";
-import { alreadySeeded, demoOffers, markSeeded } from "./seed";
-import type { Claim, ClaimStatus, NewOffer, Offer, ZoneStats } from "../types";
+import { alreadySeeded, demoPickups, markSeeded } from "./seed";
+import type { Pickup, NewPickup, ZoneStats } from "../types";
 
-const CLAIM_KEY = "surplus-street-claims-v1";
-const NOTE_KEY = "surplus-street-claim-notes-v1";
-const OFFER_KEY = "surplus-street-offers-v1";
+const LOCAL_KEY = "surplus-street-pickups-v1";
+const DETAIL_KEY = "surplus-street-pickup-details-v1";
 
 interface Board {
-  claims: Claim[];
-  offers: Offer[];
+  pickups: Pickup[];
   stats: ZoneStats;
   ready: boolean;
   live: boolean;
-  /** True once the shared `offers` table has answered. False means the
-   *  migration is not applied yet and offers are local to this browser. */
-  offersShared: boolean;
+  /** False while migration_003 has not been applied: pickup details are
+   *  local to whoever typed them. */
+  detailsShared: boolean;
   error: string | null;
 }
 
 let board: Board = {
-  claims: [],
-  offers: [],
+  pickups: [],
   stats: {},
   ready: false,
   live: false,
-  offersShared: false,
+  detailsShared: false,
   error: null,
 };
+
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<Board>) {
-  board = { ...board, ...next };   // new identity, so useSyncExternalStore sees it
+  board = { ...board, ...next };
   listeners.forEach((l) => l());
 }
 
@@ -67,69 +67,76 @@ function subscribe(l: () => void) {
   return () => void listeners.delete(l);
 }
 
-// -------------------------------------------------------- local annotations
-// The shared table has no column for food type or drop window, and we are not
-// changing the backend to add one. They are kept here, keyed by claim id, so
-// the device that entered them still shows them.
+// ------------------------------------------------------- local detail store
 
-type Note = { food?: string | null; drop_window?: string | null };
+type Detail = Partial<
+  Pick<
+    Pickup,
+    "address" | "lat" | "lng" | "food_type" | "pickup_from" | "pickup_to" | "pickup_note"
+  >
+>;
 
-function readNotes(): Record<string, Note> {
+function readDetails(): Record<string, Detail> {
   try {
-    return JSON.parse(localStorage.getItem(NOTE_KEY) || "{}") as Record<string, Note>;
+    return JSON.parse(localStorage.getItem(DETAIL_KEY) || "{}");
   } catch {
     return {};
   }
 }
 
-function saveNote(id: string, note: Note) {
+function saveDetail(id: string, d: Detail) {
   try {
-    const all = readNotes();
-    all[id] = note;
-    localStorage.setItem(NOTE_KEY, JSON.stringify(all));
+    const all = readDetails();
+    all[id] = { ...all[id], ...d };
+    localStorage.setItem(DETAIL_KEY, JSON.stringify(all));
   } catch (err) {
-    console.warn("claim note not saved:", err);
+    console.warn("pickup detail not saved:", err);
   }
 }
 
-function withNotes(rows: ClaimRow[]): Claim[] {
-  const notes = readNotes();
-  return rows.map((r) => ({ ...r, ...(notes[r.id] ?? {}) }));
+/** Server row plus whatever detail this device knows about it. Server columns
+ *  win once migration_003 makes them real. */
+function hydrate(rows: ClaimRow[]): Pickup[] {
+  const details = readDetails();
+  return rows
+    .filter((r) => r.delivery_mode === "volunteer")
+    .map((r) => {
+      const d = details[r.id] ?? {};
+      return {
+        id: r.id,
+        restaurant_name: r.restaurant_name,
+        quantity: Number(r.quantity),
+        status: r.status,
+        volunteer_name: r.volunteer_name,
+        zone_id: r.zone_id,
+        drop_location_note: r.drop_location_note,
+        created_at: r.created_at,
+        address: r.address ?? d.address ?? "",
+        lat: r.lat ?? d.lat ?? null,
+        lng: r.lng ?? d.lng ?? null,
+        food_type: r.food_type ?? d.food_type ?? "Prepared hot food",
+        pickup_from: r.pickup_from ?? d.pickup_from ?? r.created_at,
+        pickup_to: r.pickup_to ?? d.pickup_to ?? r.created_at,
+        pickup_note: r.pickup_note ?? d.pickup_note ?? null,
+      };
+    });
 }
 
 // --------------------------------------------------------------- local mode
 
-function readLocal(): Claim[] {
+function readLocal(): Pickup[] {
   try {
-    return JSON.parse(localStorage.getItem(CLAIM_KEY) || "[]") as Claim[];
+    return JSON.parse(localStorage.getItem(LOCAL_KEY) || "[]") as Pickup[];
   } catch {
     return [];
   }
 }
 
-function writeLocal(list: Claim[]) {
+function writeLocal(list: Pickup[]) {
   try {
-    localStorage.setItem(CLAIM_KEY, JSON.stringify(list));
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(list));
   } catch (err) {
-    console.warn("claims could not be saved:", err);
-  }
-}
-
-// ------------------------------------------------------------------ offers
-
-function readLocalOffers(): Offer[] {
-  try {
-    return JSON.parse(localStorage.getItem(OFFER_KEY) || "[]") as Offer[];
-  } catch {
-    return [];
-  }
-}
-
-function writeLocalOffers(list: Offer[]) {
-  try {
-    localStorage.setItem(OFFER_KEY, JSON.stringify(list));
-  } catch (err) {
-    console.warn("offers could not be saved:", err);
+    console.warn("pickups could not be saved:", err);
   }
 }
 
@@ -137,69 +144,38 @@ function newId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random()}`;
 }
 
-/** Set once we know whether the shared table exists, so every later write
- *  goes to the same place the reads came from. */
-let offersShared = false;
-
-/** Asked and answered. Without this the app re-probes a table it already
- *  knows is missing on every single refresh, which is a 404 per poll. The
- *  answer only changes when someone runs the migration, and the handoff doc
- *  says to reload after that. */
-let offersProbed = false;
-
-/** Samples, but only on a device that has never had any offers and has no
- *  shared table to put real ones in. Never inserted anywhere remote. */
-function seedIfEmpty(existing: Offer[]): Offer[] {
+/** Samples, but only on a device that has never had any. Never inserted
+ *  anywhere remote: fake surplus a real driver goes out for is the worst bug
+ *  this product could have. */
+function seedIfEmpty(existing: Pickup[]): Pickup[] {
   if (existing.length > 0 || alreadySeeded()) return existing;
-  const demo = demoOffers();
-  writeLocalOffers(demo);
+  const demo = demoPickups();
+  writeLocal(demo);
   markSeeded();
   return demo;
 }
 
-async function loadOffers(): Promise<Offer[]> {
-  if (!hasBackend) return seedIfEmpty(readLocalOffers());
-  if (offersProbed && !offersShared) return seedIfEmpty(readLocalOffers());
-  try {
-    const rows = await fetchOffers();
-    offersShared = true;
-    offersProbed = true;
-    return rows as Offer[];
-  } catch (err) {
-    if (isMissingTable(err)) {
-      // The migration is not applied yet. A known state, not a failure --
-      // run offers on this device so the app still works.
-      offersShared = false;
-      offersProbed = true;
-      return seedIfEmpty(readLocalOffers());
-    }
-    throw err;
-  }
-}
-
 // ------------------------------------------------------------------- stats
 
-/** Offline: derive coverage from local claims, local offers and the shipped
- *  zone model. */
-function localStats(claims: Claim[], offers: Offer[] = board.offers): ZoneStats {
+/** Food counts toward a zone the moment a volunteer picks it up and says
+ *  where it is going -- which is what the backend's trigger does too, since
+ *  the app writes zone_id and status 'claimed' together. */
+function counts(p: Pickup): boolean {
+  return !!p.zone_id && (p.status === "claimed" || p.status === "delivered");
+}
+
+function localStats(pickups: Pickup[]): ZoneStats {
   const out: ZoneStats = {};
   for (const z of ZONES.zones) {
-    const fromClaims = claims
-      .filter((c) => c.zone_id === z.id && c.status !== "cancelled")
-      .reduce((a, c) => a + c.quantity, 0);
-    const fromOffers = offers
-      .filter(
-        (o) => o.zone_id === z.id && (o.status === "accepted" || o.status === "delivered"),
-      )
-      .reduce((a, o) => a + o.quantity, 0);
-    const claimed = fromClaims + fromOffers;
+    const claimed = pickups
+      .filter((p) => p.zone_id === z.id && counts(p))
+      .reduce((a, p) => a + p.quantity, 0);
     const expected = z.expected_tonight;
-    const pct = expected ? Math.min(1, claimed / expected) : 1;
     const covered = expected ? claimed >= expected : true;
     out[z.id] = {
       claimed,
       expected,
-      pct,
+      pct: expected ? Math.min(1, claimed / expected) : 1,
       covered,
       status: covered ? "covered" : claimed > 0 ? "partial" : "uncovered",
     };
@@ -209,25 +185,21 @@ function localStats(claims: Claim[], offers: Offer[] = board.offers): ZoneStats 
 
 async function refresh(): Promise<void> {
   try {
-    const [zoneRows, claimRows, offerRows] = await Promise.all([
-      fetchZones(),
-      fetchClaims(),
-      loadOffers(),
-    ]);
+    const [zoneRows, claimRows] = await Promise.all([fetchZones(), fetchClaims()]);
 
     const stats: ZoneStats = {};
     for (const r of zoneRows) {
       // Their denominator, so our percentage matches their coverage_pct.
       //
       // Rounded UP, never down. The raw value is fractional (Golden Hill is
-      // 20.3), and a card that reads "~20 expected" has to be a number that
-      // actually covers the zone -- claiming exactly 20 there left it at 99%
-      // and still open, which is the card lying to a driver at 10pm. You
-      // cannot bring 0.3 of a meal, so the ceiling is also the honest figure.
-      const expected = Math.ceil(Number(r.baseline_predicted) + Number(r.recent_311_adjustment));
-      const claimed = Number(r.food_claimed);
+      // 20.3), and a card reading "~20 expected" has to be a number that
+      // actually covers the zone -- bringing exactly 20 there left it at 99%
+      // and still open, which is the card lying to a driver at 10pm.
+      const expected = Math.ceil(
+        Number(r.baseline_predicted) + Number(r.recent_311_adjustment),
+      );
       stats[r.zone_id] = {
-        claimed,
+        claimed: Number(r.food_claimed),
         expected,
         // coverage_pct is uncapped in storage on purpose (a zone can be
         // over-claimed); their schema says cap only on display.
@@ -237,32 +209,9 @@ async function refresh(): Promise<void> {
       };
     }
 
-    // When offers are local the server's food_claimed cannot know about them,
-    // so fold them in here. Once the migration lands the trigger does it and
-    // this adds nothing, because routed offers are already in food_claimed.
-    if (!offersShared) {
-      for (const o of offerRows) {
-        if (!o.zone_id || (o.status !== "accepted" && o.status !== "delivered")) continue;
-        const st = stats[o.zone_id];
-        if (!st) continue;
-        st.claimed += o.quantity;
-        st.pct = st.expected ? Math.min(1, st.claimed / st.expected) : 1;
-        st.covered = st.expected ? st.claimed >= st.expected : true;
-        st.status = st.covered ? "covered" : st.claimed > 0 ? "partial" : "uncovered";
-      }
-    }
-
-    publish({
-      claims: withNotes(claimRows),
-      offers: offerRows,
-      stats,
-      ready: true,
-      offersShared,
-      error: null,
-    });
+    publish({ pickups: hydrate(claimRows), stats, ready: true, error: null });
   } catch (err) {
-    // A dead backend must not blank the screen mid-service. Fall back to
-    // whatever is already on screen, and say so.
+    // A dead backend must not blank the screen mid-service.
     console.warn("could not load the board:", err);
     publish({
       ready: true,
@@ -273,12 +222,10 @@ async function refresh(): Promise<void> {
 
 let started = false;
 let unsubscribeRealtime: (() => void) | null = null;
-let unsubscribeOffers: (() => void) | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
-// Slow on purpose. This is the safety net for when realtime does not come up,
-// not a replacement for it: often enough that a second phone is not stuck on
-// a stale board through a service, rare enough to be invisible.
+// Slow on purpose: the safety net for when realtime does not come up, not a
+// replacement for it.
 const POLL_MS = 20000;
 
 function startPolling() {
@@ -291,44 +238,20 @@ export function initStore(): void {
   started = true;
 
   if (!hasBackend) {
-    const claims = readLocal();
-    const offers = seedIfEmpty(readLocalOffers());
-    publish({
-      claims,
-      offers,
-      stats: localStats(claims, offers),
-      ready: true,
-      live: false,
-      offersShared: false,
-    });
+    const pickups = seedIfEmpty(readLocal());
+    publish({ pickups, stats: localStats(pickups), ready: true, live: false });
     return;
   }
 
-  // The first refresh has to finish before we decide which channels to open:
-  // it is what discovers whether the `offers` table exists. Firing it and
-  // subscribing in parallel meant that on a slow connection the claims
-  // subscription resolved first, read offersShared while it was still false,
-  // and quietly never opened the offers channel for the rest of the session.
+  // The first refresh is awaited before opening the channel: subscribing in
+  // parallel meant the subscription resolved against state that had not
+  // loaded yet.
   void refresh().then(() => {
-    // Realtime is the product: a restaurant posts surplus and it appears on
-    // every driver's phone without a refresh. `zones` has no publication on
-    // the backend's side, so any event refetches everything.
-    const channels: Promise<unknown>[] = [
-      subscribeToClaims(() => void refresh()).then((off) => {
+    subscribeToClaims(() => void refresh())
+      .then((off) => {
         unsubscribeRealtime = off;
-      }),
-    ];
-
-    if (offersShared) {
-      channels.push(
-        subscribeToOffers(() => void refresh()).then((off) => {
-          unsubscribeOffers = off;
-        }),
-      );
-    }
-
-    Promise.all(channels)
-      .then(() => publish({ live: true }))
+        publish({ live: true });
+      })
       .catch((err) => {
         // Polling is not as good, but a board that goes stale for twenty
         // seconds beats one that silently never updates again.
@@ -342,8 +265,6 @@ export function initStore(): void {
 export function teardownStore(): void {
   unsubscribeRealtime?.();
   unsubscribeRealtime = null;
-  unsubscribeOffers?.();
-  unsubscribeOffers = null;
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = null;
   started = false;
@@ -351,155 +272,123 @@ export function teardownStore(): void {
 
 // ------------------------------------------------------------------ writes
 
-export interface NewClaim {
-  zoneId: string;
-  restaurantName: string;
-  quantity: number;
-  food?: string | null;
-  dropWindow?: string | null;
+/** The columns migration_003 adds. Sent optimistically; if they are not there
+ *  yet the insert is retried without them and the detail stays local. */
+function extrasOf(p: NewPickup): Record<string, unknown> {
+  return {
+    address: p.address,
+    lat: p.lat,
+    lng: p.lng,
+    food_type: p.food_type,
+    pickup_from: p.pickup_from,
+    pickup_to: p.pickup_to,
+    pickup_note: p.pickup_note,
+  };
 }
 
-export async function addClaim(input: NewClaim): Promise<void> {
+/** A restaurant posts surplus with no zone: their delivery_mode 'volunteer',
+ *  status 'requested'. */
+export async function postPickup(input: NewPickup): Promise<void> {
   if (!hasBackend) {
-    const local: Claim = {
-      id: globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}`,
-      zone_id: input.zoneId,
-      restaurant_name: input.restaurantName.trim(),
-      quantity: input.quantity,
-      status: "claimed",
+    const local: Pickup = {
+      ...input,
+      id: newId(),
+      status: "requested",
+      volunteer_name: null,
+      zone_id: null,
+      drop_location_note: null,
       created_at: new Date().toISOString(),
-      food: input.food ?? null,
-      drop_window: input.dropWindow ?? null,
     };
-    const claims = [local, ...board.claims];
-    writeLocal(claims);
-    publish({ claims, stats: localStats(claims) });
+    const pickups = [local, ...board.pickups];
+    writeLocal(pickups);
+    publish({ pickups, stats: localStats(pickups) });
     return;
   }
 
-  // Not optimistic against the server. The zone's coverage is computed by a
-  // trigger we cannot predict from here -- guessing it and being wrong would
-  // flip a zone to mint and then back, which is the one thing this screen
-  // must never do. The insert plus refetch is a single round trip.
-  const row = await insertClaim({
-    zoneId: input.zoneId,
-    restaurantName: input.restaurantName,
-    quantity: input.quantity,
-  });
-
-  if (input.food || input.dropWindow) {
-    saveNote(row.id, { food: input.food ?? null, drop_window: input.dropWindow ?? null });
+  let row: ClaimRow;
+  try {
+    row = await insertRequest({
+      restaurant_name: input.restaurant_name,
+      quantity: input.quantity,
+      extras: extrasOf(input),
+    });
+    publish({ detailsShared: true });
+  } catch (err) {
+    if (!isMissingColumn(err)) throw err;
+    // migration_003 is not applied. Post what the schema does have and keep
+    // the rest here, rather than failing a post over a missing column.
+    row = await insertRequest({
+      restaurant_name: input.restaurant_name,
+      quantity: input.quantity,
+      extras: {},
+    });
+    publish({ detailsShared: false });
   }
+
+  saveDetail(row.id, {
+    address: input.address,
+    lat: input.lat,
+    lng: input.lng,
+    food_type: input.food_type,
+    pickup_from: input.pickup_from,
+    pickup_to: input.pickup_to,
+    pickup_note: input.pickup_note,
+  });
   await refresh();
 }
 
-// ----------------------------------------------------------- offer writes
-// Every one of these goes through the same two paths: the shared table when
-// the migration is applied, this browser when it is not. No screen knows
-// which, so applying the migration changes nothing above this line.
-
-async function writeOffer(id: string, patch: Partial<Offer>): Promise<void> {
-  if (offersShared) {
-    await patchOffer(id, patch);
-    await refresh();
+async function write(id: string, patch: Record<string, unknown>): Promise<void> {
+  if (!hasBackend) {
+    const pickups = board.pickups.map((p) =>
+      p.id === id ? ({ ...p, ...patch } as Pickup) : p,
+    );
+    writeLocal(pickups);
+    publish({ pickups, stats: localStats(pickups) });
     return;
   }
-  const offers = board.offers.map((o) => (o.id === id ? { ...o, ...patch } : o));
-  writeLocalOffers(offers);
-  publish({ offers, stats: localStats(board.claims, offers) });
+  await patchClaim(id, patch);
+  await refresh();
 }
 
-/** A restaurant posts surplus: what, how much, and when it can be collected. */
-export async function postOffer(input: NewOffer): Promise<void> {
-  if (offersShared) {
-    await insertOffer(input);
-    await refresh();
-    return;
-  }
-  const local: Offer = {
-    ...input,
-    id: newId(),
-    status: "open",
-    volunteer_name: null,
-    zone_id: null,
-    accepted_at: null,
-    delivered_at: null,
-    created_at: new Date().toISOString(),
-  };
-  const offers = [local, ...board.offers];
-  writeLocalOffers(offers);
-  publish({ offers, stats: localStats(board.claims, offers) });
+/**
+ * A volunteer takes a pickup AND says where it is going, in one move.
+ *
+ * status 'claimed' rather than 'accepted' on purpose: their trigger counts
+ * 'claimed' and 'delivered', so writing the zone and this status together is
+ * what makes a zone's coverage move at pickup time -- which is what the
+ * product wants -- with no change to the backend. An 'accepted' row carrying
+ * a zone would be invisible to coverage until drop-off.
+ */
+export function takePickup(id: string, volunteer: string, zoneId: string): Promise<void> {
+  return write(id, { status: "claimed", volunteer_name: volunteer, zone_id: zoneId });
 }
 
-/** A volunteer takes the run. It leaves everyone else's list. */
-export function acceptOffer(id: string, volunteer: string): Promise<void> {
-  return writeOffer(id, {
-    status: "accepted",
-    volunteer_name: volunteer,
-    accepted_at: new Date().toISOString(),
+/** Change your mind about the destination while still holding the food. */
+export function reroutePickup(id: string, zoneId: string): Promise<void> {
+  return write(id, { zone_id: zoneId });
+}
+
+export function deliverPickup(id: string, note?: string): Promise<void> {
+  return write(id, {
+    status: "delivered",
+    ...(note ? { drop_location_note: note } : {}),
   });
-}
-
-/** The volunteer chooses where it goes. This is the decision the whole split
- *  exists for, and the moment the food starts counting towards a zone. */
-export function routeOffer(id: string, zoneId: string): Promise<void> {
-  return writeOffer(id, { zone_id: zoneId });
-}
-
-/** Route every stop in a run to the same zone. A driver fills the car from
- *  several kitchens and drops the load in one place; splitting it across zones
- *  is a second run, not a second field on this one. */
-export async function routeAll(ids: string[], zoneId: string): Promise<void> {
-  for (const id of ids) await routeOffer(id, zoneId);
-}
-
-export async function deliverAll(ids: string[]): Promise<void> {
-  for (const id of ids) await deliverOffer(id);
-}
-
-export function deliverOffer(id: string): Promise<void> {
-  return writeOffer(id, { status: "delivered", delivered_at: new Date().toISOString() });
 }
 
 /** Handing a run back: it returns to the feed for someone else. */
-export function releaseOffer(id: string): Promise<void> {
-  return writeOffer(id, {
-    status: "open",
-    volunteer_name: null,
-    zone_id: null,
-    accepted_at: null,
-  });
+export function releasePickup(id: string): Promise<void> {
+  return write(id, { status: "requested", volunteer_name: null, zone_id: null });
 }
 
 /** No DELETE policy, by design -- withdrawing keeps the row for the log. */
-export function cancelOffer(id: string): Promise<void> {
-  return writeOffer(id, { status: "cancelled" });
+export function cancelPickup(id: string): Promise<void> {
+  return write(id, { status: "cancelled" });
 }
-
-async function changeStatus(id: string, status: ClaimStatus): Promise<void> {
-  if (!hasBackend) {
-    const claims = board.claims.map((c) => (c.id === id ? { ...c, status } : c));
-    writeLocal(claims);
-    publish({ claims, stats: localStats(claims) });
-    return;
-  }
-  await setClaimStatus(id, status);
-  await refresh();
-}
-
-/** Their schema has no DELETE policy: cancelling is a status change so the
- *  SB 1383 trail stays intact. */
-export const cancelClaim = (id: string) => changeStatus(id, "cancelled");
-
-/** Their trigger counts 'claimed' and 'delivered' alike, so marking a drop
- *  delivered does not change any zone's coverage. */
-export const markDelivered = (id: string) => changeStatus(id, "delivered");
 
 // ------------------------------------------------------------------- reads
 
 const snapshot = () => board;
-const serverSnapshot = () => board;
 
 export function useBoard(): Board {
-  return useSyncExternalStore(subscribe, snapshot, serverSnapshot);
+  return useSyncExternalStore(subscribe, snapshot, snapshot);
 }

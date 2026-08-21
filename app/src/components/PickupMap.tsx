@@ -1,7 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Polygon, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
-import type { Offer } from "../types";
+import type { Pickup } from "../types";
 import { ZONES, downtownBounds, zoneRings } from "../lib/zones";
 import { shortHour } from "../lib/food";
 
@@ -47,7 +47,7 @@ function pingIcon(label: string, selected: boolean, soon: boolean): L.DivIcon {
   });
 }
 
-function Fit({ focus, points }: { focus: Offer | null; points: [number, number][] }) {
+function Fit({ focus, points }: { focus: Pickup | null; points: [number, number][] }) {
   const map = useMap();
 
   useEffect(() => {
@@ -92,17 +92,17 @@ function stopIcon(n: number): L.DivIcon {
 }
 
 interface Props {
-  offers: Offer[];
+  pickups: Pickup[];
   /** Stops this driver has already taken, drawn as the route. */
-  route?: Offer[];
+  route?: Pickup[];
   selectedId: string | null;
   onSelect: (id: string) => void;
 }
 
-export default function PickupMap({ offers, route = [], selectedId, onSelect }: Props) {
+export default function PickupMap({ pickups, route = [], selectedId, onSelect }: Props) {
   const pins = useMemo(
-    () => offers.filter((o) => o.lat != null && o.lng != null),
-    [offers],
+    () => pickups.filter((p) => p.lat != null && p.lng != null),
+    [pickups],
   );
 
   // In pickup-time order, which is the order you would actually drive it.

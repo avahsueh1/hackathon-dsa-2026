@@ -1,23 +1,25 @@
 // Typed mirror of the backend repo's src/api.js.
 //
-// The backend is a separate repo (siapatodia8/dsa-hackathon-2026) and is
-// finished -- this file adapts to its schema exactly and changes nothing on
-// that side. Every column name here is theirs.
+// The backend (siapatodia8/dsa-hackathon-2026, main) is finished and this
+// adapts to it exactly. Every column name here is theirs.
 //
-// Their shapes, verbatim from supabase/schema.sql:
+// Their volunteer flow, from supabase/add_volunteer_delivery_flow.sql:
 //
-//   zones (zone_id PK, zone_name, baseline_predicted, recent_311_count,
-//          recent_311_adjustment, food_claimed, need_score, need_tier,
-//          need_label, model_as_of, geometry jsonb,
-//          coverage_pct GENERATED, coverage_status GENERATED)
+//   claims (id, zone_id NULLABLE, restaurant_name, quantity, status,
+//           delivery_mode, volunteer_name, drop_location_note, created_at)
 //
-//   claims (id uuid, zone_id FK, restaurant_name, quantity, status, created_at)
+//   delivery_mode 'self':      claimed -> delivered, zone required at insert
+//   delivery_mode 'volunteer': requested -> accepted -> delivered, zone null
+//                              until a volunteer chooses one
 //
-// Note what claims does NOT have: no drop window, no food description, no
-// restaurant table, no auth. Anything the UI collects beyond name + quantity
-// is a local annotation -- see store.ts.
+// The app only uses the volunteer path. What a `claims` row does NOT carry is
+// where the food is, what it is, or when it can be collected -- see
+// supabase/migration_003_pickup_details.sql for the columns that would fix
+// that. Until it runs, those live in the browser that typed them (store.ts).
 
 import { supabase } from "./supabase";
+
+export type ClaimStatus = "requested" | "accepted" | "claimed" | "delivered" | "cancelled";
 
 export interface ZoneRow {
   zone_id: string;
@@ -36,11 +38,24 @@ export interface ZoneRow {
 
 export interface ClaimRow {
   id: string;
-  zone_id: string;
+  zone_id: string | null;
   restaurant_name: string;
   quantity: number;
-  status: "claimed" | "delivered" | "cancelled";
+  status: ClaimStatus;
+  delivery_mode: "self" | "volunteer";
+  volunteer_name: string | null;
+  drop_location_note: string | null;
   created_at: string;
+
+  // From migration_003. Undefined until it is applied; the store falls back
+  // to local annotations, so nothing here may be assumed present.
+  address?: string | null;
+  lat?: number | null;
+  lng?: number | null;
+  food_type?: string | null;
+  pickup_from?: string | null;
+  pickup_to?: string | null;
+  pickup_note?: string | null;
 }
 
 function client() {
@@ -49,16 +64,13 @@ function client() {
 }
 
 /**
- * All 8 zones: need model fields and the generated coverage fields.
+ * All 8 zones, with the generated coverage columns.
  *
  * coverage_pct and coverage_status are computed in Postgres from
- * food_claimed, which a trigger keeps in sync with tonight's claims. Reading
- * them rather than recomputing client-side is the point: the server's
- * definition of "tonight" comes from app_state, which is RLS-locked and not
- * readable from here, so a client-side sum could not agree with it.
- *
- * `zones` deliberately has no Realtime publication on their side, so this is
- * refetched whenever a claim changes.
+ * food_claimed, which their trigger keeps in sync with tonight's claims.
+ * Reading them rather than recomputing is the point: the server's definition
+ * of "tonight" comes from app_state, which is RLS-locked and unreadable from
+ * here, so a client-side sum could not agree with it.
  */
 export async function fetchZones(): Promise<ZoneRow[]> {
   const { data, error } = await client().from("zones").select("*").order("zone_id");
@@ -66,7 +78,8 @@ export async function fetchZones(): Promise<ZoneRow[]> {
   return (data ?? []) as ZoneRow[];
 }
 
-/** Every claim, newest first. Their api.js reads per-zone; the board needs all. */
+/** Every claim, newest first. Their api.js reads per-zone and per-restaurant;
+ *  this app needs the whole board to build the volunteer feed. */
 export async function fetchClaims(): Promise<ClaimRow[]> {
   const { data, error } = await client()
     .from("claims")
@@ -76,26 +89,27 @@ export async function fetchClaims(): Promise<ClaimRow[]> {
   return (data ?? []) as ClaimRow[];
 }
 
-/** Claim a zone. Mirrors their claimZone(), including its validation. */
-export async function insertClaim(input: {
-  zoneId: string;
-  restaurantName: string;
+/** Their requestVolunteerPickup: a restaurant posts surplus with no zone. */
+export async function insertRequest(input: {
+  restaurant_name: string;
   quantity: number;
+  extras: Record<string, unknown>;
 }): Promise<ClaimRow> {
-  const name = input.restaurantName.trim();
-  if (!input.zoneId) throw new Error("claimZone: zoneId is required");
-  if (!name) throw new Error("claimZone: restaurantName is required");
+  const name = input.restaurant_name.trim();
+  if (!name) throw new Error("insertRequest: restaurant_name is required");
   if (!(Number(input.quantity) > 0)) {
-    throw new Error("claimZone: quantity must be a positive number");
+    throw new Error("insertRequest: quantity must be a positive number");
   }
 
   const { data, error } = await client()
     .from("claims")
     .insert({
-      zone_id: input.zoneId,
+      zone_id: null,
       restaurant_name: name,
       quantity: Number(input.quantity),
-      status: "claimed",
+      delivery_mode: "volunteer",
+      status: "requested",
+      ...input.extras,
     })
     .select()
     .single();
@@ -103,88 +117,27 @@ export async function insertClaim(input: {
   return data as ClaimRow;
 }
 
-/** Their schema has no DELETE policy: cancelling is a status change, so the
- *  claim history stays intact for the SB 1383 export. */
-export async function setClaimStatus(
-  claimId: string,
-  status: ClaimRow["status"],
-): Promise<ClaimRow> {
+export async function patchClaim(id: string, patch: Record<string, unknown>): Promise<ClaimRow> {
   const { data, error } = await client()
     .from("claims")
-    .update({ status })
-    .eq("id", claimId)
+    .update(patch)
+    .eq("id", id)
     .select()
     .single();
   if (error) throw error;
   return data as ClaimRow;
 }
 
-// --------------------------------------------------------------------- offers
-// See supabase/migration_002_offers.sql. Until that migration is applied to
-// the shared project this table does not exist, and PostgREST answers 404 /
-// PGRST205 -- which the store treats as "run offers locally" rather than as a
-// failure, so the app works either way.
-
-export interface OfferRow {
-  id: string;
-  restaurant_name: string;
-  address: string;
-  contact: string | null;
-  food_type: string;
-  quantity: number;
-  notes: string | null;
-  lat: number | null;
-  lng: number | null;
-  pickup_from: string;
-  pickup_to: string;
-  status: "open" | "accepted" | "delivered" | "cancelled";
-  volunteer_name: string | null;
-  zone_id: string | null;
-  accepted_at: string | null;
-  delivered_at: string | null;
-  created_at: string;
-}
-
-/** True when the failure is "that table is not there", not "the network died". */
-export function isMissingTable(err: unknown): boolean {
+/** True when the failure is "that column is not there", not "the network
+ *  died" -- i.e. migration_003 has not been run. */
+export function isMissingColumn(err: unknown): boolean {
   const e = err as { code?: string; message?: string } | null;
-  return !!e && (e.code === "PGRST205" || /schema cache|does not exist/i.test(e.message ?? ""));
-}
-
-export async function fetchOffers(): Promise<OfferRow[]> {
-  const { data, error } = await client()
-    .from("offers")
-    .select("*")
-    .order("pickup_from", { ascending: true });
-  if (error) throw error;
-  return (data ?? []) as OfferRow[];
-}
-
-export async function insertOffer(o: {
-  restaurant_name: string;
-  address: string;
-  contact: string | null;
-  food_type: string;
-  quantity: number;
-  notes: string | null;
-  lat: number | null;
-  lng: number | null;
-  pickup_from: string;
-  pickup_to: string;
-}): Promise<OfferRow> {
-  const { data, error } = await client().from("offers").insert(o).select().single();
-  if (error) throw error;
-  return data as OfferRow;
-}
-
-export async function patchOffer(id: string, patch: Partial<OfferRow>): Promise<OfferRow> {
-  const { data, error } = await client().from("offers").update(patch).eq("id", id).select().single();
-  if (error) throw error;
-  return data as OfferRow;
-}
-
-export function subscribeToOffers(onChange: () => void): Promise<() => void> {
-  return subscribeToTable("offers", onChange);
+  return (
+    !!e &&
+    (e.code === "PGRST204" ||
+      e.code === "42703" ||
+      /column .* does not exist|schema cache/i.test(e.message ?? ""))
+  );
 }
 
 // Their api.js comment: Supabase can report SUBSCRIBED slightly before the
@@ -192,28 +145,21 @@ export function subscribeToOffers(onChange: () => void): Promise<() => void> {
 // after subscribing can be missed. Same settle window here.
 const REALTIME_SETTLE_MS = 1500;
 
-// And a hard ceiling. `subscribe` reports SUBSCRIBED / CHANNEL_ERROR /
-// TIMED_OUT / CLOSED, but it can also report nothing at all -- which left the
-// promise pending forever and the header stuck on "Connected" while realtime
-// silently never started. A subscription that has not confirmed in this long
-// is not going to.
+// And a hard ceiling. `subscribe` can also report nothing at all, which left
+// the promise pending forever and realtime silently never starting.
 const REALTIME_GIVE_UP_MS = 8000;
 
 /** Resolves to an unsubscribe function once the channel is genuinely ready. */
 export function subscribeToClaims(onChange: () => void): Promise<() => void> {
-  return subscribeToTable("claims", onChange);
-}
-
-function subscribeToTable(table: string, onChange: () => void): Promise<() => void> {
   return new Promise((resolve, reject) => {
     const sb = client();
 
     // Unique per call. Their api.js uses a fixed "claims-changes", which is
     // fine for one subscription per page -- but two channels sharing a topic
-    // on one client can leave the second one's callback never firing, and in
-    // dev StrictMode's double mount makes that easy to hit. The topic is a
+    // on one client leaves the second one's callback never firing, and in dev
+    // StrictMode's double mount makes that easy to hit. The topic is a
     // client-side name, so this changes nothing on their side.
-    const topic = `${table}-changes-${Math.random().toString(36).slice(2, 10)}`;
+    const topic = `claims-changes-${Math.random().toString(36).slice(2, 10)}`;
     let settled = false;
 
     const finish = (fn: () => void) => {
@@ -224,7 +170,7 @@ function subscribeToTable(table: string, onChange: () => void): Promise<() => vo
 
     const channel = sb
       .channel(topic)
-      .on("postgres_changes", { event: "*", schema: "public", table }, () => onChange())
+      .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, () => onChange())
       .subscribe((status, err) => {
         if (status === "SUBSCRIBED") {
           setTimeout(
@@ -234,7 +180,7 @@ function subscribeToTable(table: string, onChange: () => void): Promise<() => vo
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           finish(() => {
             void sb.removeChannel(channel);
-            reject(err ?? new Error(`subscribe(${table}): ${status}`));
+            reject(err ?? new Error(`subscribeToClaims: ${status}`));
           });
         }
       });
@@ -242,7 +188,7 @@ function subscribeToTable(table: string, onChange: () => void): Promise<() => vo
     setTimeout(() => {
       finish(() => {
         void sb.removeChannel(channel);
-        reject(new Error(`subscribe(${table}): no status after 8s`));
+        reject(new Error("subscribeToClaims: no status after 8s"));
       });
     }, REALTIME_GIVE_UP_MS);
   });
