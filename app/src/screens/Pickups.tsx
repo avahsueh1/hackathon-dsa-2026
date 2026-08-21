@@ -77,8 +77,10 @@ export default function Pickups({
   // "commit me to a destination" -- leading with four zone options answered a
   // question nobody had asked yet.
   const [step, setStep] = useState<"detail" | "destination">("detail");
-  const [zoneId, setZoneId] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // Which zone is being written, so its row can say so. There is no separate
+  // confirm: picking the zone IS the decision, and asking again after it was
+  // just answered is one tap too many at 10pm.
+  const [busy, setBusy] = useState<string | null>(null);
 
   const open = useMemo(() => {
     const now = Date.now();
@@ -137,19 +139,17 @@ export default function Pickups({
     if (selected && !open.some((p) => p.id === selected)) setSelected(null);
   }, [open, selected]);
 
-  // Default to the suggestion, and never carry the previous pickup's choice --
-  // or the previous pickup's step -- over to the next one.
+  // Never carry the previous pickup's step over to the next one.
   useEffect(() => {
-    setZoneId(suggestions[0]?.zone.id ?? null);
     setStep("detail");
-  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selected]);
 
   const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
 
-  async function take() {
-    if (!chosen || !zoneId) return;
+  async function take(zoneId: string) {
+    if (!chosen) return;
     if (!volunteer) return onNeedName();
-    setBusy(true);
+    setBusy(zoneId);
     try {
       await takePickup(chosen.id, volunteer, zoneId);
       // Joins whichever route is open, creating the first one on demand so a
@@ -158,7 +158,7 @@ export default function Pickups({
       setSelected(null);
       onAccepted();
     } finally {
-      setBusy(false);
+      setBusy(null);
     }
   }
 
@@ -246,48 +246,47 @@ export default function Pickups({
               </span>
 
               <div className="dropchoices">
-                {suggestions.map((s, i) => {
-                  const on = zoneId === s.zone.id;
-                  return (
-                    <button
-                      key={s.zone.id}
-                      type="button"
-                      className={`runzone${on ? " on" : ""}`}
-                      onClick={() => setZoneId(s.zone.id)}
-                    >
-                      <ProgressRing
-                        value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
-                        covered={s.short <= 0}
-                        size={32}
-                      />
-                      <span className="runzone-text">
-                        <span className="runzone-name">
-                          {s.zone.name}
-                          {i === 0 && <span className="nearesttag">Suggested</span>}
-                        </span>
-                        <span className="runzone-sub">
-                          {corner(s.zone.landmark.a, s.zone.landmark.b)}
-                          {s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""}
-                          {s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}
-                        </span>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={s.zone.id}
+                    type="button"
+                    className={`runzone${busy === s.zone.id ? " on" : ""}`}
+                    disabled={busy !== null}
+                    onClick={() => void take(s.zone.id)}
+                  >
+                    <ProgressRing
+                      value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
+                      covered={s.short <= 0}
+                      size={32}
+                    />
+                    <span className="runzone-text">
+                      <span className="runzone-name">
+                        {s.zone.name}
+                        {i === 0 && busy === null && (
+                          <span className="nearesttag">Suggested</span>
+                        )}
                       </span>
-                    </button>
-                  );
-                })}
+                      <span className="runzone-sub">
+                        {busy === s.zone.id
+                          ? `Adding to ${activeRoute().label}…`
+                          : `${corner(s.zone.landmark.a, s.zone.landmark.b)}${
+                              s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""
+                            }${s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}`}
+                      </span>
+                    </span>
+                  </button>
+                ))}
               </div>
 
-              <div className="stopactions">
-                <Button variant="quiet" size="md" onClick={() => setStep("detail")}>
-                  Back
-                </Button>
-                <Button
-                  disabled={!zoneId || busy}
-                  disabledReason={!zoneId ? "Pick where it goes first" : undefined}
-                  onClick={() => void take()}
-                >
-                  {busy ? "Adding…" : `Add to ${activeRoute().label}`}
-                </Button>
-              </div>
+              <Button
+                variant="quiet"
+                size="md"
+                fullWidth
+                disabled={busy !== null}
+                onClick={() => setStep("detail")}
+              >
+                Back
+              </Button>
             </>
           )}
         </div>
