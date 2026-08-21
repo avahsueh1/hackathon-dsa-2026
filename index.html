@@ -1299,7 +1299,11 @@ fieldset.fgroup legend {
   /* --- the scrolling content column --- */
   .wrap {
     flex: 1; min-height: 0;
-    overflow-y: auto;
+    /* A flex item defaults to min-width:auto, so the horizontally scrolling
+       zone rail was forcing the whole column to its content width (921px on a
+       390px phone) instead of scrolling inside itself. */
+    min-width: 0; width: 100%;
+    overflow-y: auto; overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     padding: var(--gutter) var(--gutter) var(--s-6);
     max-width: none;
@@ -1372,6 +1376,319 @@ fieldset.fgroup legend {
   .tabbar button .ti { width: 24px; height: 24px; }
 }
 
+/* ============================================ web console, per the design === */
+/* Values lifted from the rendered artboard, not approximated.                  */
+
+/* --- masthead + tabs --------------------------------------------------- */
+.wrap > header { padding-bottom: var(--s-4); }
+.wrap > header h1 { margin: 0; font: 700 26px/1.1 var(--font-ui); letter-spacing: -0.02em; }
+.wrap > header .sub { display: none; }
+.hmark { color: var(--amber-solid); }
+
+nav.tabs {
+  display: flex; align-items: center; gap: var(--s-1);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--s-6);
+}
+nav.tabs button[role="tab"] {
+  min-height: var(--tap-min); padding: 0 var(--s-4); cursor: pointer;
+  background: none; border: 0; border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  font: var(--t-body-lg); color: var(--text-secondary);
+}
+nav.tabs button[role="tab"][aria-selected="true"] {
+  border-bottom-color: var(--amber-solid); color: var(--text);
+}
+nav.tabs button.theme {
+  margin-left: auto; font: var(--t-body); color: var(--text-secondary);
+  background: none; border: 0; padding: 0 var(--s-2); min-height: var(--tap-min);
+}
+
+/* --- tonight status bar + zone rail ------------------------------------ */
+.railcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--s-5);
+  margin-bottom: var(--s-5);
+}
+.railtop { display: flex; align-items: center; gap: var(--s-4); }
+.railtop .rl {
+  font: var(--t-label); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--text-secondary);
+}
+.railtop .rn {
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+  font-size: var(--t-hero-size); line-height: 1; font-weight: var(--t-hero-weight);
+  letter-spacing: var(--tracking-hero); color: var(--text);
+}
+.railtop .rc { font: var(--t-body); color: var(--text-secondary); white-space: nowrap; }
+.railtop .rt { margin-left: auto; font: var(--t-body); color: var(--text-secondary); }
+
+.railgrid {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr);
+  gap: var(--s-2);
+  border-top: 1px solid var(--border);
+  padding-top: var(--s-3); margin-top: var(--s-4);
+}
+.railbtn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1);
+  min-width: 0; min-height: 56px; text-align: left;
+  padding: var(--s-2) var(--s-1);
+  cursor: pointer; border: 0; border-top: 2px solid var(--amber-solid);
+  border-radius: 0 0 var(--r-sm) var(--r-sm);
+  background: var(--amber-tint); color: var(--amber-ink);
+  transition: background var(--dur-flip) var(--ease),
+              border-color var(--dur-flip) var(--ease),
+              color var(--dur-flip) var(--ease);
+}
+.railbtn.covered {
+  background: var(--mint-tint); color: var(--mint-ink);
+  border-top-color: var(--mint-solid);
+}
+.railbtn .rb-n {
+  font: var(--t-label); letter-spacing: var(--tracking-label);
+  display: flex; align-items: center; gap: var(--s-2); white-space: nowrap;
+}
+.railbtn .rb-w {
+  font-size: 10px; line-height: 1.3; color: var(--text-secondary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; max-width: 100%; overflow-wrap: anywhere;
+}
+.railcount {
+  font: var(--t-label); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--text-secondary);
+  display: block; margin-bottom: var(--s-3);
+}
+
+/* --- zone card, exactly as designed ------------------------------------ */
+.zcard {
+  background: var(--surface); border: 1px solid var(--border);
+  border-left: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--card-pad-desktop);
+  display: flex; flex-direction: column; gap: var(--s-4);
+}
+.zcard.covered { background: var(--surface); }
+.zpill { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.statuspill {
+  font: var(--t-label); letter-spacing: var(--tracking-label); text-transform: uppercase;
+  padding: 5px 11px; border-radius: var(--r-full);
+  background: var(--amber-tint); color: var(--amber-ink);
+  border: 1px solid transparent;
+  display: inline-flex; align-items: center; gap: var(--s-2);
+}
+.statuspill.covered { background: var(--mint-tint); color: var(--mint-ink); }
+.zbody { display: flex; flex-direction: column; gap: var(--s-1); }
+.ztitle { font: var(--t-title); letter-spacing: -0.01em; color: var(--text); }
+.zsubtitle { font: var(--t-body); color: var(--text-secondary); }
+.zmeta { font-family: var(--font-num); font-variant-numeric: tabular-nums; color: var(--mint-ink); }
+.zmeta.open { color: var(--text-secondary); }
+.zprog { display: flex; flex-direction: column; gap: var(--s-2); }
+.zprogtop { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
+.zprogpct {
+  font: var(--t-label); letter-spacing: var(--tracking-label); text-transform: uppercase;
+  color: var(--mint-ink);
+}
+.zprogpct.open { color: var(--amber-ink); }
+.zprogneed { font: var(--t-caption); color: var(--text-muted); }
+.ztrack {
+  height: 8px; border-radius: var(--r-full);
+  background: var(--surface-sunken); border: 1px solid var(--border); overflow: hidden;
+}
+.ztrack span {
+  display: block; height: 100%; background: var(--mint-solid);
+  transition: width var(--dur-flip) var(--ease), background var(--dur-flip) var(--ease);
+}
+.ztrack span.open { background: var(--amber-solid); }
+.zcard .btn { min-height: var(--tap-primary); font: var(--t-body-lg); }
+
+@media (max-width: 860px) {
+  /* The console nav is unscoped and lands after the app-shell rule, so it has
+     to be re-hidden here. On a phone the bottom bar is the navigation. */
+  .wrap > header, nav.tabs { display: none !important; }
+  .railcard { padding: var(--card-pad); }
+  .railtop { flex-wrap: wrap; gap: var(--s-2); }
+  .railtop .rn { font-size: 34px; }
+  .railtop .rt { margin-left: auto; }
+  /* the rail scrolls sideways rather than crushing nine zones into 390px */
+  .railcard, .zcard, .tonighthead, .privacynote { min-width: 0; max-width: 100%; }
+  .railgrid {
+    grid-auto-columns: 104px;
+    /* contain the scroll rather than let it size the parent */
+    min-width: 0; max-width: 100%;
+    overflow-x: auto; scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: var(--s-2);
+  }
+  .railbtn { scroll-snap-align: start; }
+  .zcard { padding: var(--card-pad); }
+}
+
+/* ======================================================== landing page ==== */
+/* Ported from the Claude Design landing artboard. Same tokens, same copy,     */
+/* same structure -- rebuilt as CSS so it ships in the one offline file.       */
+
+.landing { display: none; background: var(--bg); color: var(--text); }
+body.on-landing .landing { display: block; }
+body.on-landing .appheader,
+body.on-landing .tabbar,
+body.on-landing > header,
+body.on-landing nav.tabs,
+body.on-landing .wrap { display: none !important; }
+
+.landing .btn.secondary {
+  background: transparent; border-color: var(--border-strong); color: var(--text);
+}
+.landing .btn.secondary:hover { background: var(--surface); }
+
+.lnav {
+  max-width: 1080px; margin: 0 auto;
+  padding: var(--s-5);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-4);
+}
+.lmark { font: 700 20px/1 var(--font-ui); letter-spacing: -0.01em; }
+.larrow { color: var(--amber-solid); }
+
+.lhero {
+  max-width: 1080px; margin: 0 auto;
+  padding: var(--s-7) var(--s-5) var(--s-8);
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
+  gap: var(--s-8); align-items: center;
+}
+.lherotext { display: flex; flex-direction: column; gap: var(--s-5); }
+.lhero h1 {
+  margin: 0; font-family: var(--font-ui); font-weight: 700;
+  font-size: clamp(32px, 4.2vw, 58px); line-height: 1.04;
+  letter-spacing: -0.03em; text-wrap: balance;
+}
+.llede {
+  margin: 0; font: var(--t-body-lg); color: var(--text-secondary);
+  max-width: 54ch; text-wrap: pretty;
+}
+.lcta { display: flex; gap: var(--s-3); flex-wrap: wrap; }
+.lfine { font: var(--t-caption); color: var(--text-muted); }
+
+/* the live zone rail, built from the real zone model */
+.lpreview { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.lrail { display: flex; flex-direction: column; }
+.lrailrow {
+  display: flex; align-items: center; gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+  border-bottom: 1px solid var(--border);
+}
+.lrailrow:last-child { border-bottom: none; }
+.lrailchip {
+  flex: none; width: 10px; height: 10px; border-radius: var(--r-full);
+  background: var(--amber-solid);
+  transition: background var(--dur-flip) var(--ease);
+}
+.lrailrow.covered .lrailchip { background: var(--mint-solid); }
+.lrailname { flex: 1; min-width: 0; font: var(--t-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lrailmeta { font: var(--t-caption); color: var(--text-muted); font-family: var(--font-num); }
+.lrailrow.covered .lrailmeta { color: var(--mint-ink); }
+.lrailfoot {
+  padding: var(--s-4); background: var(--surface);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: var(--s-3);
+}
+.statuspill {
+  font: var(--t-label); letter-spacing: var(--tracking-label); text-transform: uppercase;
+  padding: 4px 10px; border-radius: var(--r-full);
+  background: var(--amber-tint); color: var(--amber-ink);
+}
+.statuspill.covered { background: var(--mint-tint); color: var(--mint-ink); }
+
+.lsection {
+  padding: var(--s-8) var(--s-5);
+  border-top: 1px solid var(--border);
+}
+.lsection > * { max-width: 1080px; margin-left: auto; margin-right: auto; }
+.eyebrow {
+  display: block; font: var(--t-label); letter-spacing: var(--tracking-label);
+  text-transform: uppercase; color: var(--text-muted);
+}
+
+.lsteps {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-5); margin-top: var(--s-5);
+}
+.lstep {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-md); padding: var(--card-pad-desktop);
+  display: flex; flex-direction: column; gap: var(--s-3);
+}
+.lstepnum {
+  font-family: var(--font-num); font-size: var(--t-hero-size); line-height: 1;
+  font-weight: 700; letter-spacing: var(--tracking-hero); color: var(--amber-solid);
+}
+.lsteptitle { font: var(--t-title); letter-spacing: -0.01em; }
+.lstepbody { font: var(--t-body); color: var(--text-secondary); text-wrap: pretty; }
+
+.ltwo { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: var(--s-8); align-items: start; }
+.lcol { display: flex; flex-direction: column; gap: var(--s-4); }
+.lcol h2 { margin: 0; font: var(--t-title); letter-spacing: -0.01em; }
+.lcol p { margin: 0; font: var(--t-body); color: var(--text-secondary); text-wrap: pretty; }
+.lcol p.lfine { font: var(--t-caption); color: var(--text-muted); }
+
+.llog { border-radius: var(--r-md); overflow: hidden; background: var(--surface); }
+.ltable { width: 100%; border-collapse: collapse; background: var(--surface); color: var(--text); }
+.ltable th {
+  font: var(--t-label); letter-spacing: var(--tracking-label); text-transform: uppercase;
+  color: var(--text-secondary); text-align: left;
+  padding: var(--s-3) var(--s-4); background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border);
+}
+.ltable td { font: var(--t-body); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--border); }
+.ltable tr:last-child td { border-bottom: none; }
+.ltable .n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+
+.lstats { display: flex; gap: var(--s-8); flex-wrap: wrap; margin-top: var(--s-4); }
+.lstat { display: flex; flex-direction: column; gap: var(--s-1); }
+.lstatn {
+  font-family: var(--font-num); font-variant-numeric: tabular-nums;
+  font-size: var(--t-hero-size); line-height: 1; font-weight: 700;
+  letter-spacing: var(--tracking-hero);
+}
+.lstatl { font: var(--t-body); color: var(--text-secondary); }
+
+.lfinalrow { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--s-5); flex-wrap: wrap; }
+.lbig {
+  margin: 0 0 var(--s-3); font-family: var(--font-ui); font-weight: 700;
+  font-size: clamp(26px, 3vw, 40px); line-height: 1.06;
+  letter-spacing: -0.02em; text-wrap: balance;
+}
+.lfooter {
+  border-top: 1px solid var(--border); padding: var(--s-5);
+  font: var(--t-caption); color: var(--text-muted);
+}
+.lfooter > span { display: block; }
+.lfooter {
+  display: flex; justify-content: space-between; gap: var(--s-4); flex-wrap: wrap;
+}
+
+/* --- landing on a phone ------------------------------------------------- */
+@media (max-width: 860px) {
+  .landing {
+    height: 100dvh; overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .lnav {
+    padding: calc(env(safe-area-inset-top, 0px) + var(--s-4)) var(--gutter) var(--s-4);
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .lnav .btn { font-size: 13px; padding: 8px 12px; }
+  .lhero {
+    grid-template-columns: 1fr; gap: var(--s-5);
+    padding: var(--s-5) var(--gutter) var(--s-6);
+  }
+  .lcta .btn { flex: 1; min-height: var(--tap-primary); }
+  .lsection { padding: var(--s-6) var(--gutter); }
+  .lsteps, .ltwo { grid-template-columns: 1fr; gap: var(--s-4); }
+  .lstep { padding: var(--card-pad); }
+  .lstats { gap: var(--s-5); }
+  .lfinalrow .btn { width: 100%; min-height: var(--tap-primary); }
+}
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -1398,6 +1715,113 @@ fieldset.fgroup legend {
 </style>
 </head>
 <body>
+<div class="landing" id="screen-landing">
+
+  <nav class="lnav">
+    <span class="lmark">Surplus <span class="larrow">&rarr;</span> Street</span>
+    <button class="btn primary" data-enter>Open tonight&rsquo;s board</button>
+  </nav>
+
+  <header class="lhero">
+    <div class="lherotext">
+      <h1>Downtown throws away good food every night. This says where to take it.</h1>
+      <p class="llede" id="l-lede"></p>
+      <div class="lcta">
+        <button class="btn primary" data-enter>Claim a zone tonight</button>
+        <button class="btn secondary" id="l-demo">See what happens</button>
+      </div>
+      <span class="lfine">Free for restaurants. No app to install.</span>
+    </div>
+
+    <div class="lpreview">
+      <div class="lrail" id="l-rail"></div>
+      <div class="lrailfoot">
+        <span class="statuspill" id="l-pill"></span>
+        <span class="lfine">tonight, live</span>
+      </div>
+    </div>
+  </header>
+
+  <section class="lsection">
+    <span class="eyebrow">How it works</span>
+    <div class="lsteps">
+      <div class="lstep">
+        <span class="lstepnum">1</span>
+        <span class="lsteptitle">Claim a zone</span>
+        <span class="lstepbody">One tap. The zone turns from amber to mint, and everyone
+        else can see someone is going.</span>
+      </div>
+      <div class="lstep">
+        <span class="lstepnum">2</span>
+        <span class="lsteptitle">Bring what you have</span>
+        <span class="lstepbody">Say roughly how many servings. Nobody counts hotel pans
+        exactly at 10pm.</span>
+      </div>
+      <div class="lstep">
+        <span class="lstepnum">3</span>
+        <span class="lsteptitle">It writes your log</span>
+        <span class="lstepbody">Every drop lands in your SB 1383 record. Download the
+        month when the city asks.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsection">
+    <div class="ltwo">
+      <div class="lcol">
+        <span class="eyebrow">Zones, not people</span>
+        <h2>We never plot a person.</h2>
+        <p>The map shows zones, and the colours describe our coverage gaps &mdash; not
+        where anyone sleeps. Amber does not mean danger and it does not mean people.
+        It means no restaurant has claimed that zone yet.</p>
+        <p class="lfine">Need levels are zone estimates from nine years of street counts
+        plus current 311 reports. They are not headcounts and not individual locations.</p>
+      </div>
+
+      <div class="lcol">
+        <span class="eyebrow">Compliance, handled</span>
+        <h2>Your SB 1383 log writes itself.</h2>
+        <p>California requires large food businesses to donate surplus and keep the
+        record. Every zone you claim becomes a row. Download the month as a file.</p>
+        <div class="llog" data-mode="desk">
+          <table class="ltable">
+            <thead><tr><th>Date</th><th>Restaurant</th><th class="n">Servings</th><th class="n">Lbs</th></tr></thead>
+            <tbody>
+              <tr><td>Aug 18</td><td>Taquer&iacute;a Luna</td><td class="n">30</td><td class="n">42</td></tr>
+              <tr><td>Aug 18</td><td>Kono&rsquo;s</td><td class="n">40</td><td class="n">55</td></tr>
+              <tr><td>Aug 17</td><td>Prep Kitchen</td><td class="n">25</td><td class="n">31</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="lsection">
+    <span class="eyebrow">Sample month &mdash; figures shown are demo data</span>
+    <div class="lstats">
+      <div class="lstat"><span class="lstatn">205</span><span class="lstatl">servings delivered this month</span></div>
+      <div class="lstat"><span class="lstatn">253</span><span class="lstatl">lbs diverted from landfill</span></div>
+      <div class="lstat"><span class="lstatn">7</span><span class="lstatl">restaurants on the board</span></div>
+    </div>
+  </section>
+
+  <section class="lsection lfinal">
+    <div class="lfinalrow">
+      <div>
+        <h2 class="lbig" id="l-final"></h2>
+        <p class="llede" id="l-finalsub"></p>
+      </div>
+      <button class="btn primary" data-enter>Open tonight&rsquo;s board</button>
+    </div>
+  </section>
+
+  <footer class="lfooter">
+    <span>Surplus &rarr; Street &middot; Downtown San Diego</span>
+    <span>Food rescue coordination. We coordinate food; we don&rsquo;t categorize people.</span>
+  </footer>
+</div>
+
 <div class="appheader">
   <div class="apptitle">Surplus &rarr; Street<span class="appsub" id="app-sub"></span></div>
   <button class="headerbtn" id="app-mode">Desk</button>
@@ -1406,7 +1830,7 @@ fieldset.fgroup legend {
 <div class="wrap">
 
 <header>
-  <h1>Surplus &rarr; Street</h1>
+  <h1>Surplus <span class="hmark">&rarr;</span> Street</h1>
   <p class="sub">
     Downtown restaurants throw away good food every night while people go hungry
     two blocks away. This coordinates the drop-offs, so nowhere gets four
@@ -1438,6 +1862,9 @@ fieldset.fgroup legend {
     needs. It never shows where individuals sleep, and never an exact headcount.
     <a href="#" id="privacy-more">Why</a>
   </div>
+
+  <div class="railcard" id="zone-rail"></div>
+  <span class="railcount" id="zone-count"></span>
 
   <div class="zonelayout">
     <div class="zonelist" id="zone-list"></div>
@@ -3531,7 +3958,25 @@ themeBtn.addEventListener("click", function () {
 // Panels are populated from the inlined JSON, so adding a new one means
 // adding a section and a render function -- see docs/ADDING_A_PANEL.md.
 
-var TABS = ["tonight", "drops", "explore", "plan", "signup"];
+// The situation and shelter-plan screens are parked while the team focuses on
+// the coordination product. The code and data are untouched -- flip this to
+// true and both tabs reappear.
+var SHOW_ANALYSIS = false;
+var ALL_TABS = ["tonight", "drops", "explore", "plan", "signup"];
+var TABS = SHOW_ANALYSIS
+  ? ALL_TABS
+  : ALL_TABS.filter(function (t) { return t !== "explore" && t !== "plan"; });
+
+if (!SHOW_ANALYSIS) {
+  ["explore", "plan"].forEach(function (t) {
+    var btn = document.getElementById("tb-" + t);
+    if (btn) btn.hidden = true;
+    var bar = document.querySelector('#tabbar button[data-tab="' + t + '"]');
+    if (bar) bar.hidden = true;
+    var pane = document.getElementById("tab-" + t);
+    if (pane) pane.hidden = true;
+  });
+}
 
 function showTab(name) {
   TABS.forEach(function (t) {
@@ -4065,6 +4510,105 @@ if (PLAN && typeof gPlan !== "undefined") {
 
 applyTheme(savedTheme);
 
+// ------------------------------------------------------------- landing
+// The landing screen is the front door: it explains the idea and hands you to
+// registration. Once a restaurant has an account the app opens straight away,
+// because a signed-in user does not need the pitch again.
+
+function showLanding() {
+  document.body.classList.add("on-landing");
+  window.scrollTo(0, 0);
+  if (typeof renderLanding === "function") renderLanding();
+}
+
+function enterApp() {
+  document.body.classList.remove("on-landing");
+  window.scrollTo(0, 0);
+  // No account yet? Registration is the first thing you see.
+  var acct = window.SurplusAccount && window.SurplusAccount.current;
+  showTab(acct ? "tonight" : "signup");
+}
+
+Array.prototype.forEach.call(document.querySelectorAll("[data-enter]"), function (b) {
+  b.addEventListener("click", enterApp);
+});
+
+function renderLanding() {
+  if (!ZONES) return;
+  var zones = ZONES.zones;
+  var covered = zones.filter(function (z) { return coverage(z) >= 0.999; }).length;
+  var open = zones.length - covered;
+
+  var lede = document.getElementById("l-lede");
+  if (lede) {
+    lede.textContent = zones.length + " zones downtown. Amber means nobody is " +
+      "going yet. Mint means someone is, and here is who and what they are " +
+      "bringing. A chef can learn it while untying an apron.";
+  }
+
+  var rail = document.getElementById("l-rail");
+  if (rail) {
+    rail.innerHTML = zones.map(function (z) {
+      var cov = coverage(z) >= 0.999;
+      return '<div class="lrailrow' + (cov ? " covered" : "") + '">' +
+        '<span class="lrailchip"></span>' +
+        '<span class="lrailname">' + z.name + "</span>" +
+        '<span class="lrailmeta">' + (cov ? "covered" : fmt(stillNeeded(z))) + "</span>" +
+        "</div>";
+    }).join("");
+  }
+
+  var pill = document.getElementById("l-pill");
+  if (pill) {
+    pill.className = "statuspill" + (open === 0 ? " covered" : "");
+    pill.textContent = open === 0
+      ? "All " + zones.length + " covered"
+      : open + " still open";
+  }
+
+  var fin = document.getElementById("l-final");
+  var fsub = document.getElementById("l-finalsub");
+  if (fin) {
+    fin.textContent = open === 0 ? "Every zone is covered tonight."
+      : open === 1 ? "There is one open zone tonight."
+      : "There are " + open + " open zones tonight.";
+  }
+  if (fsub) {
+    fsub.textContent = open === 0 ? "Come back tomorrow night."
+      : "Takes about eight seconds to claim one.";
+  }
+}
+
+var demoBtn = document.getElementById("l-demo");
+if (demoBtn) {
+  demoBtn.addEventListener("click", function () {
+    // The design's "See what happens": cover the next open zone so the amber
+    // to mint transition is visible before anyone signs up.
+    var next = ZONES && ZONES.zones.filter(function (z) {
+      return coverage(z) < 0.999; })[0];
+    if (!next) { saveClaims([], function (a) { return a.clear(); }); return; }
+    var list = loadClaims().slice();
+    list.push({ id: "demo-" + next.id, zone: next.id, zone_name: next.name,
+      meals: next.expected_tonight, when: "Tonight, 10-11pm", what: "",
+      who: "Your kitchen", date: todayStamp(), status: "claimed" });
+    saveClaims(list, function (a) { return a.insert(list[list.length - 1]); });
+  });
+}
+
+// Front door on first load; straight to the app once registered.
+//
+// This has to wait for the account to load. Account.init() resolves on a
+// microtask even in local mode, so checking .current synchronously here showed
+// a registered restaurant the landing page every time it opened the app.
+showLanding();
+(window.SurplusAccount ? window.SurplusAccount.init() : Promise.resolve())
+  .then(function () {
+    if (window.SurplusAccount && window.SurplusAccount.current) {
+      document.body.classList.remove("on-landing");
+      showTab("tonight");
+    }
+  });
+
 
 // ======================================================= Surplus -> Street
 // The coordination loop: claim a zone, post how much you are bringing, and
@@ -4213,15 +4757,52 @@ function renderTonight() {
   var expected = zones.reduce(function (a, z) { return a + z.expected_tonight; }, 0);
   var claimed = zones.reduce(function (a, z) { return a + mealsFor(z.id); }, 0);
   var short = Math.max(0, expected - claimed);
-  var uncovered = zones.filter(function (z) { return coverage(z) < 0.999; }).length;
+  var coveredCount = zones.filter(function (z) { return coverage(z) >= 0.999; }).length;
+  var openCount = zones.length - coveredCount;
+
+  // ---- status bar + zone rail, per the design
+  var now = new Date();
+  var hh = now.getHours(), mm = String(now.getMinutes()).padStart(2, "0");
+  var ampm = hh >= 12 ? "PM" : "AM";
+  var time = ((hh % 12) || 12) + ":" + mm + " " + ampm;
+
+  var rail = document.getElementById("zone-rail");
+  if (rail) {
+    rail.innerHTML =
+      '<div class="railtop">' +
+        '<span class="rl">Tonight</span>' +
+        '<span class="rn">' + coveredCount + " of " + zones.length + "</span>" +
+        '<span class="rc">zones covered</span>' +
+        '<span class="rt">' + time + "</span>" +
+      "</div>" +
+      '<div class="railgrid">' +
+        zones.map(function (z, i) {
+          var cov = coverage(z) >= 0.999;
+          return '<button class="railbtn' + (cov ? " covered" : "") +
+            '" data-zone="' + z.id + '" title="' + z.name + '">' +
+            '<span class="rb-n">' + (cov ? "◉" : "○") + " " + (i + 1) + "</span>" +
+            '<span class="rb-w">' + prettyStreet(z.landmark.a) + " &amp; " +
+              prettyStreet(z.landmark.b) + "</span>" +
+          "</button>";
+        }).join("") +
+      "</div>";
+    Array.prototype.forEach.call(rail.querySelectorAll("[data-zone]"), function (b) {
+      b.addEventListener("click", function () {
+        var card = document.querySelector('.zcard[data-z="' + b.dataset.zone + '"]');
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "center" });
+      });
+    });
+  }
+
+  var count = document.getElementById("zone-count");
+  if (count) {
+    count.textContent = openCount + " open · " + coveredCount + " covered";
+  }
 
   document.getElementById("tonight-sub").innerHTML =
-    "Zones are ranked by how much food is still needed. Claim one and every " +
-    "other restaurant sees it is covered, so nobody doubles up and nowhere " +
-    "gets missed. " + (ZONES.zones[0] && ZONES.zones[0].model
-      ? "Need combines the physical street counts with recent 311 encampment " +
-        "reports, minus whatever has already been claimed."
-      : "Need is based on " + ZONES.basis.charAt(0).toLowerCase() + ZONES.basis.slice(1));
+    "Amber means nobody is going yet. Mint means someone is, and here is who and " +
+    "what they are bringing. Need combines the street counts with recent 311 " +
+    "reports, minus whatever has already been claimed.";
 
   function tn(v, k, cls) {
     return '<div class="tnum' + (cls ? " " + cls : "") + '"><div class="tv">' + v +
@@ -4230,10 +4811,9 @@ function renderTonight() {
   document.getElementById("tonight-nums").innerHTML =
     tn(fmt(expected), "meals needed downtown") +
     tn(fmt(claimed), "claimed so far", claimed > 0 ? "good" : "") +
-    tn(fmt(short), "still unclaimed", short > 0 ? "bad" : "good") +
-    tn(uncovered + " of " + zones.length, "zones still short");
+    tn(fmt(short), "still unclaimed", short > 0 ? "bad" : "good");
 
-  // Zones that still need food come first -- the list is a worklist.
+  // ---- the cards: open first, then by how much is still needed
   var order = zones.slice().sort(function (a, b) {
     var ca = coverage(a) >= 0.999, cb = coverage(b) >= 0.999;
     if (ca !== cb) return ca ? 1 : -1;
@@ -4246,48 +4826,41 @@ function renderTonight() {
     var cov = coverage(z);
     var covered = cov >= 0.999;
     var pct = Math.round(cov * 100);
+    var lead = mine.length ? mine[mine.length - 1] : null;
 
-    var who = mine.map(function (c) {
-      return (c.who || "A restaurant") + " &middot; " + fmt(c.meals) + " meals &middot; " +
-             c.when;
-    });
+    var pillText = covered
+      ? "Covered" + (lead && lead.who ? " · " + lead.who : "")
+      : (meals ? "Partly covered" : "Open");
 
-    return '<div class="zcard ' + z.band + (covered ? " covered" : "") + '">' +
-      '<div class="zhead">' +
-        '<div><div class="zname">' + z.name +
-          '<span class="zband ' + z.band + '">' + BAND_LABEL[z.band] + "</span></div>" +
-          '<div class="zwhere">near ' + prettyStreet(z.landmark.a) + " &amp; " +
-            prettyStreet(z.landmark.b) + " &middot; " + z.block_count + " blocks" +
-            (z.services.shelters ? " &middot; " + z.services.shelters + " shelters" : "") +
-          "</div>" +
-          (z.model
-            ? '<div class="zmodel">' + fmt(z.model.baseline_predicted) +
-              " from " + z.model.baseline_observation_count + " street counts" +
-              (z.model.recent_311_count
-                ? " &middot; <b>+" + fmt(z.model.recent_311_adjustment) +
-                  "</b> from " + fmt(z.model.recent_311_count) + " recent 311 reports"
-                : " &middot; no recent 311 signal") +
-              "</div>"
-            : "") +
+    var metaLine = lead
+      ? (lead.who || "A restaurant") + " · ~" + fmt(meals) + " servings · arriving " +
+        String(lead.when || "").replace(/^Tonight,\s*/, "")
+      : "Nobody is going yet";
+
+    return '<div class="zcard' + (covered ? " covered" : "") + '" data-z="' + z.id + '">' +
+      '<div class="zpill">' +
+        '<span class="statuspill' + (covered ? " covered" : "") + '">' +
+          (covered ? "◉" : "○") + " " + pillText + "</span>" +
+        '<span class="zprogneed">~' + fmt(z.expected_tonight) + " expected</span>" +
+      "</div>" +
+      '<div class="zbody">' +
+        '<div class="ztitle">' + z.name + " — " + prettyStreet(z.landmark.a) +
+          " &amp; " + prettyStreet(z.landmark.b) + "</div>" +
+        '<div class="zsubtitle">' + z.area + " · " + z.block_count + " blocks" +
+          (z.services.shelters ? " · " + z.services.shelters + " shelters" : "") + "</div>" +
+        '<div class="zmeta' + (covered ? "" : " open") + '">' + metaLine + "</div>" +
+      "</div>" +
+      '<div class="zprog">' +
+        '<div class="zprogtop">' +
+          '<span class="zprogpct' + (covered ? "" : " open") + '">' + pct + "% covered</span>" +
+          '<span class="zprogneed">of ~' + fmt(z.expected_tonight) + " needed</span>" +
         "</div>" +
-        '<div class="zexp"><b>~' + fmt(z.expected_tonight) + "</b><span>expected</span></div>" +
+        '<div class="ztrack"><span class="' + (covered ? "" : "open") +
+          '" style="width:' + pct + '%"></span></div>' +
       "</div>" +
-      '<div class="zbar"><span style="width:' + pct + '%"></span></div>' +
-      '<div class="zstat">' +
-        (covered
-          ? '<span class="ok">Covered &mdash; ' + fmt(meals) + " meals coming</span>"
-          : (meals
-              ? '<span class="part">' + fmt(meals) + " meals coming &middot; <b>" +
-                fmt(stillNeeded(z)) + " still needed</b></span>"
-              : '<span class="none"><b>' + fmt(stillNeeded(z)) +
-                " meals needed</b> &middot; nothing claimed yet</span>")) +
-      "</div>" +
-      (who.length ? '<ul class="zwho"><li>' + who.join("</li><li>") + "</li></ul>" : "") +
-      '<div class="zactions">' +
-        '<button class="btn ' + (covered ? "ghostbtn" : "primary") +
+      '<button class="btn ' + (covered ? "secondary" : "primary") +
         '" data-claim="' + z.id + '">' +
-        (meals ? "Add another drop" : "Claim this zone") + "</button>" +
-      "</div>" +
+        (meals ? "Add to this drop" : "Claim this zone") + "</button>" +
     "</div>";
   }).join("");
 
@@ -4298,6 +4871,7 @@ function renderTonight() {
 
   renderZoneMap();
   renderDrops();
+  if (typeof renderLanding === "function") renderLanding();
 }
 
 // ------------------------------------------------------------- the zone map
