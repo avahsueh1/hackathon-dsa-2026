@@ -350,6 +350,7 @@ button { font: inherit; color: inherit; }
 .drop-meta { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
 .drop-sub { font: var(--t-caption); color: var(--text-muted); }
 .drop-cancelled { font: var(--t-caption); color: var(--text-muted); }
+.droprow-actions { display: flex; gap: var(--s-2); flex-wrap: wrap; margin-top: var(--s-1); }
 .droplist .fineprint { padding: var(--s-4) var(--gutter) 0; }
 
 /* ============================================================= landing ===== */

@@ -1,7 +1,7 @@
 import { Fragment, useEffect, useMemo } from "react";
 import { MapContainer, TileLayer, Polygon, Marker, useMap } from "react-leaflet";
 import L from "leaflet";
-import type { Claim, Zone } from "../types";
+import type { Zone, ZoneStats } from "../types";
 import { coverage, zoneRings, zoneCenter, downtownBounds } from "../lib/zones";
 
 /* NOTE: §8 of the design system says "flat shapes, no basemap tiles". This
@@ -75,23 +75,23 @@ function Fit({ focus }: { focus: Zone | null }) {
 
 interface Props {
   zones: Zone[];
-  claims: Claim[];
+  stats: ZoneStats;
   focus?: Zone | null;
   onSelect?: (id: string) => void;
   showLegend?: boolean;
 }
 
-export default function ZoneMap({ zones, claims, focus = null, onSelect, showLegend = true }: Props) {
+export default function ZoneMap({ zones, stats, focus = null, onSelect, showLegend = true }: Props) {
   const shapes = useMemo(
     () =>
       zones.map((z, i) => ({
         zone: z,
         n: i + 1,
-        pct: coverage(claims, z),
+        pct: coverage(stats, z),
         rings: zoneRings(z),
         center: zoneCenter(z),
       })),
-    [zones, claims],
+    [zones, stats],
   );
 
   return (

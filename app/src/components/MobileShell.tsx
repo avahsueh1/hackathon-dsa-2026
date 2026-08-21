@@ -16,16 +16,30 @@ interface Props {
   mode: "field" | "desk";
   onMode: () => void;
   title: string;
+  /** Whether this phone is on the shared board or on its own. Worth a line of
+   *  the header: a driver has to know if what they are looking at is what
+   *  everyone else sees. */
+  status: string;
+  degraded?: boolean;
   children: ReactNode;
 }
 
-export default function MobileShell({ tab, onTab, mode, onMode, title, children }: Props) {
+export default function MobileShell({
+  tab,
+  onTab,
+  mode,
+  onMode,
+  title,
+  status,
+  degraded = false,
+  children,
+}: Props) {
   return (
     <>
       <header className="appheader">
         <div className="appheader-text">
-          <span className="ss-label appheader-eyebrow">Surplus &rarr; Street</span>
           <span className="appheader-title">{title}</span>
+          <span className={`appheader-status${degraded ? " degraded" : ""}`}>{status}</span>
         </div>
         <Button variant="quiet" size="md" onClick={onMode} style={{ whiteSpace: "nowrap" }}>
           {mode === "field" ? "Field" : "Desk"}

@@ -1,4 +1,4 @@
-import type { Claim, Zone } from "../types";
+import type { Zone, ZoneStats } from "../types";
 import { isCovered } from "../lib/zones";
 import { corner } from "../lib/streets";
 import { clockTime } from "../lib/format";
@@ -16,7 +16,7 @@ import { clockTime } from "../lib/format";
 
 interface Props {
   zones: Zone[];
-  claims: Claim[];
+  stats: ZoneStats;
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   label?: string;
@@ -28,13 +28,13 @@ interface Props {
 
 export default function ZoneRail({
   zones,
-  claims,
+  stats,
   selectedId,
   onSelect,
   label = "Tonight",
   compact = false,
 }: Props) {
-  const covered = zones.filter((z) => isCovered(claims, z)).length;
+  const covered = zones.filter((z) => isCovered(stats, z)).length;
 
   return (
     <div className={`rail${compact ? " compact" : ""}`}>
@@ -60,7 +60,7 @@ export default function ZoneRail({
         <span aria-hidden="true" className="rail-line" />
         <div className="rail-tickets">
           {zones.map((z, i) => {
-            const cov = isCovered(claims, z);
+            const cov = isCovered(stats, z);
             const on = z.id === selectedId;
             return (
               <button

@@ -1,26 +1,45 @@
-// Claims store.
+// The board: tonight's claims and each zone's coverage.
 //
-// Same adapter idea as the single-file build, but expressed as an external
-// store so components subscribe with useSyncExternalStore instead of the page
-// re-rendering itself. Reads stay synchronous against an in-memory cache;
-// writes are optimistic and reconcile afterwards. A claim that fails to save
-// is worse than one that appears instantly, but a button that does nothing for
-// 400ms at closing time is worse than both.
+// Two sources, one shape. Connected, claims come from their `claims` table and
+// coverage comes from the generated `coverage_pct` / `coverage_status` columns
+// on `zones`. Offline, both are derived from localStorage. Components read
+// through useBoard() and never learn which one is running.
 //
-// With no Supabase env vars this is localStorage and the demo works offline.
+// Why coverage is read rather than recomputed: their trigger sums only claims
+// created since app_state.current_service_night_started_at, and app_state is
+// RLS-locked with no policies. A client-side sum could not agree with the
+// server's idea of "tonight", and two numbers that disagree at 10pm is worse
+// than one number that comes from one place.
 
 import { useSyncExternalStore } from "react";
-import { supabase, hasBackend } from "./supabase";
-import type { Claim, NewClaim } from "../types";
+import { hasBackend } from "./supabase";
+import {
+  fetchClaims,
+  fetchZones,
+  insertClaim,
+  setClaimStatus,
+  subscribeToClaims,
+  type ClaimRow,
+} from "./backend";
+import { ZONES } from "./zones";
+import type { Claim, ClaimStatus, ZoneStats } from "../types";
 
-const KEY = "surplus-street-claims-v1";
+const CLAIM_KEY = "surplus-street-claims-v1";
+const NOTE_KEY = "surplus-street-claim-notes-v1";
 
-let cache: Claim[] = [];
-let ready = false;
+interface Board {
+  claims: Claim[];
+  stats: ZoneStats;
+  ready: boolean;
+  live: boolean;
+  error: string | null;
+}
+
+let board: Board = { claims: [], stats: {}, ready: false, live: false, error: null };
 const listeners = new Set<() => void>();
 
-function emit() {
-  // A new array identity every time, so useSyncExternalStore sees the change.
+function publish(next: Partial<Board>) {
+  board = { ...board, ...next };   // new identity, so useSyncExternalStore sees it
   listeners.forEach((l) => l());
 }
 
@@ -29,9 +48,41 @@ function subscribe(l: () => void) {
   return () => void listeners.delete(l);
 }
 
+// -------------------------------------------------------- local annotations
+// The shared table has no column for food type or drop window, and we are not
+// changing the backend to add one. They are kept here, keyed by claim id, so
+// the device that entered them still shows them.
+
+type Note = { food?: string | null; drop_window?: string | null };
+
+function readNotes(): Record<string, Note> {
+  try {
+    return JSON.parse(localStorage.getItem(NOTE_KEY) || "{}") as Record<string, Note>;
+  } catch {
+    return {};
+  }
+}
+
+function saveNote(id: string, note: Note) {
+  try {
+    const all = readNotes();
+    all[id] = note;
+    localStorage.setItem(NOTE_KEY, JSON.stringify(all));
+  } catch (err) {
+    console.warn("claim note not saved:", err);
+  }
+}
+
+function withNotes(rows: ClaimRow[]): Claim[] {
+  const notes = readNotes();
+  return rows.map((r) => ({ ...r, ...(notes[r.id] ?? {}) }));
+}
+
+// --------------------------------------------------------------- local mode
+
 function readLocal(): Claim[] {
   try {
-    return JSON.parse(localStorage.getItem(KEY) || "[]") as Claim[];
+    return JSON.parse(localStorage.getItem(CLAIM_KEY) || "[]") as Claim[];
   } catch {
     return [];
   }
@@ -39,135 +90,178 @@ function readLocal(): Claim[] {
 
 function writeLocal(list: Claim[]) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    localStorage.setItem(CLAIM_KEY, JSON.stringify(list));
   } catch (err) {
     console.warn("claims could not be saved:", err);
   }
 }
 
-function localId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${listeners.size}`;
+// ------------------------------------------------------------------- stats
+
+/** Offline: derive coverage from local claims and the shipped zone model. */
+function localStats(claims: Claim[]): ZoneStats {
+  const out: ZoneStats = {};
+  for (const z of ZONES.zones) {
+    const claimed = claims
+      .filter((c) => c.zone_id === z.id && c.status !== "cancelled")
+      .reduce((a, c) => a + c.quantity, 0);
+    const expected = z.expected_tonight;
+    const pct = expected ? Math.min(1, claimed / expected) : 1;
+    const covered = expected ? claimed >= expected : true;
+    out[z.id] = {
+      claimed,
+      expected,
+      pct,
+      covered,
+      status: covered ? "covered" : claimed > 0 ? "partial" : "uncovered",
+    };
+  }
+  return out;
 }
 
-// ------------------------------------------------------------------- load
-
 async function refresh(): Promise<void> {
-  if (!supabase) return;
-  const { data, error } = await supabase
-    .from("claims")
-    .select("*")
-    .order("created_at", { ascending: false });
+  try {
+    const [zoneRows, claimRows] = await Promise.all([fetchZones(), fetchClaims()]);
 
-  if (error) {
-    // A dead backend must not blank the screen mid-service.
-    console.warn("could not load claims:", error.message);
-    return;
+    const stats: ZoneStats = {};
+    for (const r of zoneRows) {
+      // Their denominator, so our percentage matches their coverage_pct.
+      //
+      // Rounded UP, never down. The raw value is fractional (Golden Hill is
+      // 20.3), and a card that reads "~20 expected" has to be a number that
+      // actually covers the zone -- claiming exactly 20 there left it at 99%
+      // and still open, which is the card lying to a driver at 10pm. You
+      // cannot bring 0.3 of a meal, so the ceiling is also the honest figure.
+      const expected = Math.ceil(Number(r.baseline_predicted) + Number(r.recent_311_adjustment));
+      const claimed = Number(r.food_claimed);
+      stats[r.zone_id] = {
+        claimed,
+        expected,
+        // coverage_pct is uncapped in storage on purpose (a zone can be
+        // over-claimed); their schema says cap only on display.
+        pct: Math.min(1, (Number(r.coverage_pct ?? 0) || 0) / 100),
+        covered: r.coverage_status === "covered",
+        status: r.coverage_status,
+      };
+    }
+
+    publish({ claims: withNotes(claimRows), stats, ready: true, error: null });
+  } catch (err) {
+    // A dead backend must not blank the screen mid-service. Fall back to
+    // whatever is already on screen, and say so.
+    console.warn("could not load the board:", err);
+    publish({
+      ready: true,
+      error: "Showing the last data we had — the live board is unreachable.",
+    });
   }
-  cache = (data ?? []) as Claim[];
-  emit();
 }
 
 let started = false;
+let unsubscribeRealtime: (() => void) | null = null;
 
 export function initStore(): void {
   if (started) return;
   started = true;
 
-  if (!supabase) {
-    cache = readLocal();
-    ready = true;
-    emit();
+  if (!hasBackend) {
+    const claims = readLocal();
+    publish({ claims, stats: localStats(claims), ready: true, live: false });
     return;
   }
 
-  // Realtime is the whole product: another restaurant claims a zone and every
-  // other screen has to show it without a refresh.
-  supabase
-    .channel("claims-live")
-    .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, () => {
-      void refresh();
-    })
-    .subscribe();
+  void refresh();
 
-  void refresh().finally(() => {
-    ready = true;
-    emit();
-  });
+  // Realtime is the product: another restaurant claims a zone and every other
+  // phone has to show it without a refresh. `zones` has no publication on
+  // their side, so a claims event refetches both.
+  subscribeToClaims(() => void refresh())
+    .then((off) => {
+      unsubscribeRealtime = off;
+      publish({ live: true });
+    })
+    .catch((err) => {
+      // Polling is not a substitute, but a board that updates on your own
+      // actions still beats one that appears frozen.
+      console.warn("realtime unavailable, falling back to refetch on write:", err);
+      publish({ live: false });
+    });
+}
+
+export function teardownStore(): void {
+  unsubscribeRealtime?.();
+  unsubscribeRealtime = null;
+  started = false;
 }
 
 // ------------------------------------------------------------------ writes
 
+export interface NewClaim {
+  zoneId: string;
+  restaurantName: string;
+  quantity: number;
+  food?: string | null;
+  dropWindow?: string | null;
+}
+
 export async function addClaim(input: NewClaim): Promise<void> {
-  const optimistic: Claim = {
-    ...input,
-    id: localId(),
-    created_at: new Date().toISOString(),
-  };
-
-  cache = [optimistic, ...cache];
-  emit();
-
-  if (!supabase) {
-    writeLocal(cache);
+  if (!hasBackend) {
+    const local: Claim = {
+      id: globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}`,
+      zone_id: input.zoneId,
+      restaurant_name: input.restaurantName.trim(),
+      quantity: input.quantity,
+      status: "claimed",
+      created_at: new Date().toISOString(),
+      food: input.food ?? null,
+      drop_window: input.dropWindow ?? null,
+    };
+    const claims = [local, ...board.claims];
+    writeLocal(claims);
+    publish({ claims, stats: localStats(claims) });
     return;
   }
 
-  // created_by is filled by the column default (auth.uid()) and enforced by
-  // RLS, so it is deliberately not sent from the client.
-  const { error } = await supabase.from("claims").insert({
-    zone: input.zone,
-    zone_name: input.zone_name,
-    meals: input.meals,
-    drop_window: input.drop_window,
-    food_description: input.food_description,
-    donor_name: input.donor_name,
-    drop_date: input.drop_date,
-    status: input.status,
+  // Not optimistic against the server. The zone's coverage is computed by a
+  // trigger we cannot predict from here -- guessing it and being wrong would
+  // flip a zone to mint and then back, which is the one thing this screen
+  // must never do. The insert plus refetch is a single round trip.
+  const row = await insertClaim({
+    zoneId: input.zoneId,
+    restaurantName: input.restaurantName,
+    quantity: input.quantity,
   });
 
-  if (error) {
-    console.warn("claim did not save:", error.message);
-    cache = cache.filter((c) => c.id !== optimistic.id);
-    emit();
-    throw error;
+  if (input.food || input.dropWindow) {
+    saveNote(row.id, { food: input.food ?? null, drop_window: input.dropWindow ?? null });
   }
   await refresh();
 }
 
-/** The schema has no DELETE policy on purpose -- cancelling must leave the
- *  SB 1383 trail intact, so it is a status change. */
-export async function cancelClaim(id: string): Promise<void> {
-  cache = cache.map((c) => (c.id === id ? { ...c, status: "cancelled" as const } : c));
-  emit();
-
-  if (!supabase) {
-    writeLocal(cache);
+async function changeStatus(id: string, status: ClaimStatus): Promise<void> {
+  if (!hasBackend) {
+    const claims = board.claims.map((c) => (c.id === id ? { ...c, status } : c));
+    writeLocal(claims);
+    publish({ claims, stats: localStats(claims) });
     return;
   }
-  const { error } = await supabase.from("claims").update({ status: "cancelled" }).eq("id", id);
-  if (error) {
-    console.warn("cancel did not save:", error.message);
-    await refresh();
-  }
+  await setClaimStatus(id, status);
+  await refresh();
 }
 
-export async function clearLocalClaims(): Promise<void> {
-  if (hasBackend) return;
-  cache = [];
-  writeLocal(cache);
-  emit();
-}
+/** Their schema has no DELETE policy: cancelling is a status change so the
+ *  SB 1383 trail stays intact. */
+export const cancelClaim = (id: string) => changeStatus(id, "cancelled");
 
-// ------------------------------------------------------------------- read
+/** Their trigger counts 'claimed' and 'delivered' alike, so marking a drop
+ *  delivered does not change any zone's coverage. */
+export const markDelivered = (id: string) => changeStatus(id, "delivered");
 
-const snapshot = () => cache;
-const serverSnapshot = () => EMPTY;
-const EMPTY: Claim[] = [];
+// ------------------------------------------------------------------- reads
 
-export function useClaims(): Claim[] {
+const snapshot = () => board;
+const serverSnapshot = () => board;
+
+export function useBoard(): Board {
   return useSyncExternalStore(subscribe, snapshot, serverSnapshot);
-}
-
-export function isReady(): boolean {
-  return ready;
 }

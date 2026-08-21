@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Zone } from "./types";
-import { initStore, useClaims, addClaim } from "./lib/store";
+import { initStore, useBoard, addClaim } from "./lib/store";
 import { initAccount, useAccount } from "./lib/account";
+import { hasBackend } from "./lib/supabase";
 import { ZONES, stillNeeded, totals } from "./lib/zones";
-import { todayStamp } from "./lib/format";
 
 import MobileShell, { type Tab } from "./components/MobileShell";
 import Toast from "./components/Toast";
@@ -22,7 +22,7 @@ const TITLES: Record<Tab, string> = {
 };
 
 export default function App() {
-  const claims = useClaims();
+  const { claims, stats, ready, live, error } = useBoard();
   const account = useAccount();
 
   const [booted, setBooted] = useState(false);
@@ -53,15 +53,16 @@ export default function App() {
     [],
   );
 
-  // Nothing rendered until we know which screen is right: a landing page that
-  // flashes and vanishes reads as a bug.
-  if (!booted) return <div className="device" aria-busy="true" />;
+  // Wait for the account AND the first load of the board. A landing page that
+  // flashes and vanishes reads as a bug, and so does a board that says
+  // "8 open" for a beat before the real numbers arrive.
+  if (!booted || !ready) return <div className="device" aria-busy="true" />;
 
   if (onLanding) {
     return (
       <div className="device">
         <Landing
-          claims={claims}
+          stats={stats}
           onEnter={() => setOnLanding(false)}
           onRegister={() => {
             setTab("account");
@@ -69,24 +70,30 @@ export default function App() {
           }}
           onDemo={() => {
             // Covers the next open zone so the amber -> mint flip is visible
-            // before anyone signs up.
-            const next = ZONES.zones.find((z) => stillNeeded(claims, z) > 0);
-            if (!next || totals(claims).open === 0) return;
+            // before anyone signs up. On the shared board this is a real claim
+            // that everyone sees, so it is labelled as a demo drop.
+            const next = ZONES.zones.find((z) => stillNeeded(stats, z) > 0);
+            if (!next || totals(stats).open === 0) return;
             void addClaim({
-              zone: next.id,
-              zone_name: next.name,
-              meals: stillNeeded(claims, next),
-              drop_window: "Tonight, 8-9pm",
-              food_description: "Prepared hot food",
-              donor_name: "Demo Kitchen",
-              drop_date: todayStamp(),
-              status: "claimed",
-            });
+              zoneId: next.id,
+              restaurantName: "Demo Kitchen",
+              quantity: stillNeeded(stats, next),
+              food: "Prepared hot food",
+              dropWindow: "Tonight, 8-9pm",
+            }).catch(() => setToast("Could not reach the board."));
           }}
         />
       </div>
     );
   }
+
+  const status = error
+    ? error
+    : hasBackend
+      ? live
+        ? "Live board · downtown San Diego"
+        : "Connected · downtown San Diego"
+      : "This browser only · downtown San Diego";
 
   return (
     <div className="device">
@@ -96,10 +103,13 @@ export default function App() {
         mode={mode}
         onMode={() => setMode(mode === "field" ? "desk" : "field")}
         title={TITLES[tab]}
+        status={status}
+        degraded={!!error}
       >
         {tab === "tonight" && (
           <Tonight
             claims={claims}
+            stats={stats}
             selectedId={selectedId}
             onSelect={select}
             onClaim={setClaiming}
@@ -109,19 +119,22 @@ export default function App() {
         {tab === "map" && (
           <MapScreen
             claims={claims}
+            stats={stats}
             selectedId={selectedId}
             onSelect={select}
             onClaim={setClaiming}
           />
         )}
-        {tab === "drops" && <Drops claims={claims} onGoTonight={() => setTab("tonight")} />}
+        {tab === "drops" && (
+          <Drops claims={claims} mine={account?.name ?? null} onGoTonight={() => setTab("tonight")} />
+        )}
         {tab === "account" && <Account onDone={() => setTab("tonight")} />}
       </MobileShell>
 
       {claiming && (
         <ClaimSheet
           zone={claiming}
-          claims={claims}
+          stats={stats}
           account={account}
           onClose={() => setClaiming(null)}
           onDone={(msg) => {

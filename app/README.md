@@ -36,26 +36,54 @@ pipeline is picked up automatically on the machine that has `data/out/`.
 
 ## Backend
 
-With no env vars the app runs entirely on localStorage and the demo works
-offline — including claiming, the coverage flip and the SB 1383 export. Point
-it at the backend repo's Supabase project by copying `.env.example` to `.env`:
+Wired to the backend repo's live Supabase project
+(`siapatodia8/dsa-hackathon-2026`). Nothing on that side was changed — the
+frontend was reshaped to fit the schema, not the other way round.
 
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+The URL and publishable key are defaults in `src/lib/supabase.ts`, the same
+values their `src/supabaseClient.js` commits, and for the same reason: it is
+the publishable/anon key, and RLS controls what it can do. `.env` overrides
+both. `VITE_SUPABASE_OFFLINE=1` forces the localStorage path, which is worth
+knowing if venue wifi blocks outbound mid-demo.
 
-Both values are statically folded at build time, so with them unset Rollup
-tree-shakes supabase-js out of the bundle entirely; with them set it comes back
-as a ~220 KB chunk. Verified both ways.
+### What their schema actually gives us
 
-`supabase/schema.sql` at the repo root is the target shape. The backend still
-needs two nullable columns on `claims`:
+`claims` has exactly four writable columns: `zone_id`, `restaurant_name`,
+`quantity`, `status`. There is no restaurants table and no auth — their RLS is
+deliberately trust-based for the demo. So:
 
-```sql
-alter table public.claims add column if not exists drop_window text;
-alter table public.claims add column if not exists food_description text;
-```
+- **Registration is local.** It exists to fill in `restaurant_name` on every
+  claim rather than to create an account. `lib/account.ts` never touches the
+  network.
+- **Food type and drop window have no column.** The claim sheet still collects
+  them and they are stored locally, keyed by claim id, so the device that
+  entered them still shows them. The shared board carries the business and the
+  quantity. The Drops screen says so rather than implying they synced.
+- **Cancelling is a status change,** matching their deliberate lack of a
+  DELETE policy, so the SB 1383 trail stays intact.
+
+### Coverage comes from the server, not from us
+
+`zones.coverage_pct` and `coverage_status` are generated columns driven by a
+trigger that sums only claims created since
+`app_state.current_service_night_started_at`. That table is RLS-locked with no
+policies, so the client cannot reproduce the server's idea of "tonight" — a
+client-side sum would quietly disagree with it. The store reads their numbers
+instead. `zones` has no Realtime publication on their side (also deliberate),
+so a `claims` event refetches both.
+
+Their realtime settle window is copied too: Supabase can report `SUBSCRIBED`
+just before the replication filter is bound, so a write made immediately after
+subscribing can be missed.
+
+### Two bugs this integration surfaced
+
+Their need denominators are fractional — Golden Hill is 20.3. Rounding it for
+display gave a card reading "~20 expected" where bringing exactly 20 left the
+zone at 99% and still open. Displayed need is now rounded **up**: you cannot
+bring 0.3 of a meal, and the number on the card has to be one that finishes the
+job. The claim sheet's suggested quantity had the same flaw — it rounded to the
+nearest 5, pre-filling 20 against a need of 21 — and now rounds up too.
 
 ## Layout
 

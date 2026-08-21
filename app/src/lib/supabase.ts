@@ -1,21 +1,31 @@
-// One client, created only if the env vars are present.
+// One client.
 //
-// The backend lives in a separate repo (siapatodia8/dsa-hackathon-2026) and may
-// not be up yet, so the app has to run without it: with no VITE_SUPABASE_URL
-// the store and the account fall back to localStorage and the demo still works
-// end to end. Nothing else in the app branches on this -- only the two adapters
-// below.
+// The URL and publishable key default to the backend repo's live project.
+// They are committed there too, and their supabaseClient.js documents why
+// that is safe: the key is the publishable/anon key, and Row Level Security
+// on zones/claims -- not key secrecy -- controls what it can do. Never the
+// service_role key.
+//
+// A .env can still override both, so pointing at a different project is a
+// config change rather than a code change.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+const URL = import.meta.env.VITE_SUPABASE_URL || "https://agpfsxvgjzthuckmmuad.supabase.co";
+const KEY =
+  import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_dGYMR1Kfa_YU3H2yWOyb7Q__Q0E57Rg";
+
+// Set VITE_SUPABASE_OFFLINE=1 to force the localStorage path -- useful for
+// demoing on venue wifi that blocks outbound, and for testing the fallback.
+const OFFLINE = import.meta.env.VITE_SUPABASE_OFFLINE === "1";
 
 export const supabase: SupabaseClient | null =
-  url && key
-    ? createClient(url, key, {
-        auth: { persistSession: true, autoRefreshToken: true },
-      })
-    : null;
+  OFFLINE || !URL || !KEY
+    ? null
+    : createClient(URL, KEY, {
+        // No auth system exists on the backend (their RLS is trust-based for
+        // the demo), so there is no session to persist or refresh.
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
 
 export const hasBackend = supabase !== null;

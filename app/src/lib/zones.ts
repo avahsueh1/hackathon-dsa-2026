@@ -3,41 +3,59 @@
 
 import zonesFile from "../data/zones.json";
 import geometryFile from "../data/geometry.json";
-import type { Claim, GeometryFile, Zone, ZonesFile } from "../types";
+import type { Claim, GeometryFile, Zone, ZoneStat, ZoneStats, ZonesFile } from "../types";
 
 export const ZONES = zonesFile as unknown as ZonesFile;
 export const GEOMETRY = geometryFile as unknown as GeometryFile;
 
 /** Claims that still count -- cancelled ones stay in the log but not the maths. */
 export function claimsFor(claims: Claim[], zoneId: string): Claim[] {
-  return claims.filter((c) => c.zone === zoneId && c.status !== "cancelled");
+  return claims.filter((c) => c.zone_id === zoneId && c.status !== "cancelled");
 }
 
-export function mealsFor(claims: Claim[], zoneId: string): number {
-  return claimsFor(claims, zoneId).reduce((a, c) => a + c.meals, 0);
+const MISSING: ZoneStat = {
+  claimed: 0,
+  expected: 0,
+  pct: 0,
+  covered: false,
+  status: "uncovered",
+};
+
+/** Coverage comes from the store, which gets it from the server when one is
+ *  connected. Never recompute it here: the server's "tonight" window is not
+ *  reproducible client-side, and two disagreeing numbers is worse than one. */
+export function statOf(stats: ZoneStats, z: Zone): ZoneStat {
+  return stats[z.id] ?? { ...MISSING, expected: z.expected_tonight };
 }
 
-export function stillNeeded(claims: Claim[], z: Zone): number {
-  return Math.max(0, z.expected_tonight - mealsFor(claims, z.id));
+export function coverage(stats: ZoneStats, z: Zone): number {
+  return statOf(stats, z).pct;
 }
 
-export function coverage(claims: Claim[], z: Zone): number {
-  if (!z.expected_tonight) return 1;
-  return Math.min(1, mealsFor(claims, z.id) / z.expected_tonight);
+export function isCovered(stats: ZoneStats, z: Zone): boolean {
+  return statOf(stats, z).covered;
 }
 
-export function isCovered(claims: Claim[], z: Zone): boolean {
-  // Floating point: 389.9999/390 is covered.
-  return coverage(claims, z) >= 0.999;
+export function mealsFor(stats: ZoneStats, z: Zone): number {
+  return statOf(stats, z).claimed;
+}
+
+export function expectedFor(stats: ZoneStats, z: Zone): number {
+  const e = statOf(stats, z).expected;
+  return e > 0 ? e : z.expected_tonight;
+}
+
+export function stillNeeded(stats: ZoneStats, z: Zone): number {
+  return Math.max(0, expectedFor(stats, z) - mealsFor(stats, z));
 }
 
 /** Open zones first, then whichever still needs the most. */
-export function byUrgency(claims: Claim[], zones: Zone[]): Zone[] {
+export function byUrgency(stats: ZoneStats, zones: Zone[]): Zone[] {
   return [...zones].sort((a, b) => {
-    const ca = isCovered(claims, a);
-    const cb = isCovered(claims, b);
+    const ca = isCovered(stats, a);
+    const cb = isCovered(stats, b);
     if (ca !== cb) return ca ? 1 : -1;
-    return stillNeeded(claims, b) - stillNeeded(claims, a);
+    return stillNeeded(stats, b) - stillNeeded(stats, a);
   });
 }
 
@@ -50,11 +68,16 @@ export interface TonightTotals {
   total: number;
 }
 
-export function totals(claims: Claim[]): TonightTotals {
+export function totals(stats: ZoneStats): TonightTotals {
   const zs = ZONES.zones;
-  const expected = zs.reduce((a, z) => a + z.expected_tonight, 0);
-  const claimed = zs.reduce((a, z) => a + mealsFor(claims, z.id), 0);
-  const covered = zs.filter((z) => isCovered(claims, z)).length;
+  let expected = 0;
+  let claimed = 0;
+  let covered = 0;
+  for (const z of zs) {
+    expected += expectedFor(stats, z);
+    claimed += mealsFor(stats, z);
+    if (isCovered(stats, z)) covered++;
+  }
   return {
     expected,
     claimed,

@@ -52,25 +52,44 @@ export interface GeometryFile {
 }
 
 // ------------------------------------------------------------------ claims
+// These are the backend's column names, not ours -- see lib/backend.ts. The
+// frontend was reshaped to match the schema rather than the schema reshaped
+// to match the frontend.
 
 export type ClaimStatus = "claimed" | "delivered" | "cancelled";
 
 export interface Claim {
   id: string;
-  zone: string;
-  zone_name: string;
-  meals: number;
-  drop_window: string;
-  food_description: string | null;
-  donor_name: string | null;
-  drop_date: string;          // YYYY-MM-DD
+  zone_id: string;
+  restaurant_name: string;
+  quantity: number;
   status: ClaimStatus;
   created_at: string;
+
+  /** Local annotations. The shared `claims` table has no column for either,
+   *  so these live in this browser and are shown only on the device that
+   *  entered them. Everyone sees the name and the quantity. */
+  food?: string | null;
+  drop_window?: string | null;
 }
 
-export type NewClaim = Omit<Claim, "id" | "created_at">;
+/** Server truth per zone. When a backend is connected these come straight
+ *  from the generated `coverage_pct` / `coverage_status` columns, because the
+ *  server's "tonight" window (app_state) is RLS-locked and cannot be
+ *  reproduced client-side. Offline they are computed from local claims. */
+export interface ZoneStat {
+  claimed: number;
+  expected: number;
+  pct: number;                  // 0..1, capped for display
+  covered: boolean;
+  status: "uncovered" | "partial" | "covered";
+}
+
+export type ZoneStats = Record<string, ZoneStat>;
 
 // ------------------------------------------------------------- restaurants
+// The backend has no restaurants table and no auth, so registration is a
+// local convenience only: it saves typing the business name on every claim.
 
 export interface Restaurant {
   id?: string;

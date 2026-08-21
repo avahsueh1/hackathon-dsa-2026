@@ -1,3 +1,9 @@
+/** "1 meal", "2 meals". The stepper reaches 1 whenever a zone is nearly
+ *  covered, so this is a visible case, not a pedantic one. */
+export function plural(n: number, one: string, many = one + "s"): string {
+  return n === 1 ? one : many;
+}
+
 export function fmt(n: number): string {
   return Math.round(n).toLocaleString("en-US");
 }

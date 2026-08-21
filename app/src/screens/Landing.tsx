@@ -1,19 +1,19 @@
 import { useMemo } from "react";
 import Button from "../components/Button";
-import type { Claim } from "../types";
+import type { ZoneStats } from "../types";
 import { ZONES, isCovered, stillNeeded, totals } from "../lib/zones";
 import { corner } from "../lib/streets";
 import { fmt } from "../lib/format";
 
 interface Props {
-  claims: Claim[];
+  stats: ZoneStats;
   onEnter: () => void;
   onRegister: () => void;
   onDemo: () => void;
 }
 
-export default function Landing({ claims, onEnter, onRegister, onDemo }: Props) {
-  const t = useMemo(() => totals(claims), [claims]);
+export default function Landing({ stats, onEnter, onRegister, onDemo }: Props) {
+  const t = useMemo(() => totals(stats), [stats]);
 
   return (
     <div className="landing">
@@ -36,13 +36,13 @@ export default function Landing({ claims, onEnter, onRegister, onDemo }: Props) 
 
         <div className="lpreview">
           {ZONES.zones.slice(0, 5).map((z) => {
-            const covered = isCovered(claims, z);
+            const covered = isCovered(stats, z);
             return (
               <div key={z.id} className={`lrow${covered ? " covered" : ""}`}>
                 <span className="lchip" />
                 <span className="lname">{corner(z.landmark.a, z.landmark.b)}</span>
                 <span className="lmeta">
-                  {covered ? "covered" : `${fmt(stillNeeded(claims, z))} short`}
+                  {covered ? "covered" : `${fmt(stillNeeded(stats, z))} short`}
                 </span>
               </div>
             );

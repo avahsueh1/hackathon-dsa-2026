@@ -3,9 +3,9 @@ import type { Restaurant, Zone } from "../types";
 import { addClaim } from "../lib/store";
 import { stillNeeded } from "../lib/zones";
 import { corner } from "../lib/streets";
-import { fmt, todayStamp } from "../lib/format";
+import { fmt, plural } from "../lib/format";
 import { FOODS, DROP_WINDOWS } from "../lib/food";
-import type { Claim } from "../types";
+import type { ZoneStats } from "../types";
 import BottomSheet, { type Snap } from "../components/BottomSheet";
 import QuantityStepper from "../components/QuantityStepper";
 import StatusPill from "../components/StatusPill";
@@ -13,19 +13,24 @@ import Button from "../components/Button";
 
 interface Props {
   zone: Zone;
-  claims: Claim[];
+  stats: ZoneStats;
   account: Restaurant | null;
   onClose: () => void;
   onDone: (message: string) => void;
 }
 
-export default function ClaimSheet({ zone, claims, account, onClose, onDone }: Props) {
-  const short = stillNeeded(claims, zone);
+export default function ClaimSheet({ zone, stats, account, onClose, onDone }: Props) {
+  const short = stillNeeded(stats, zone);
   const covered = short === 0;
 
   const [snap, setSnap] = useState<Snap>("full");
-  // Default to what the zone actually needs, rounded to the nearest preset step.
-  const [qty, setQty] = useState(Math.max(10, Math.min(200, Math.round(short / 5) * 5 || 25)));
+  // Default to what the zone actually needs, rounded UP to a whole preset step.
+  // Rounding to nearest pre-filled 20 against a need of 21, so a restaurant who
+  // accepted the default left the zone at 99% and still open. The suggested
+  // number has to be one that finishes the job.
+  const [qty, setQty] = useState(
+    short > 0 ? Math.max(10, Math.min(200, Math.ceil(short / 5) * 5)) : 25,
+  );
   const [food, setFood] = useState<string | null>(null);
   const [when, setWhen] = useState<string>(DROP_WINDOWS[1]);
   const [who, setWho] = useState(account?.name ?? "");
@@ -39,18 +44,17 @@ export default function ClaimSheet({ zone, claims, account, onClose, onDone }: P
     setErr(null);
     try {
       await addClaim({
-        zone: zone.id,
-        zone_name: zone.name,
-        meals: qty,
-        drop_window: when,
-        food_description: food,
-        // A registered account is authoritative: it is what the SB 1383 log
+        zoneId: zone.id,
+        // A registered account is authoritative: it is what the board
         // attributes the drop to, so a typed name can never override it.
-        donor_name: account?.name ?? who.trim() ?? null,
-        drop_date: todayStamp(),
-        status: "claimed",
+        // restaurant_name is NOT NULL on their side, hence the guard above.
+        restaurantName: account?.name ?? who.trim(),
+        quantity: qty,
+        // No column for either on the shared board -- kept locally. See store.ts.
+        food,
+        dropWindow: when,
       });
-      onDone(`Claimed ${zone.name} — ~${qty} servings`);
+      onDone(`Claimed ${zone.name} — ~${qty} ${plural(qty, "serving")}`);
     } catch {
       setErr("That did not save. Check your connection and try again.");
       setSaving(false);
@@ -70,7 +74,9 @@ export default function ClaimSheet({ zone, claims, account, onClose, onDone }: P
           <span className="claimtitle">{zone.name}</span>
           <span className="claimsub">
             {corner(zone.landmark.a, zone.landmark.b)} ·{" "}
-            {covered ? "already covered — anything extra helps" : `~${fmt(short)} meals still needed`}
+            {covered
+              ? "already covered — anything extra helps"
+              : `~${fmt(short)} ${plural(short, "meal")} still needed`}
           </span>
         </div>
 

@@ -1,4 +1,5 @@
 import type { CSSProperties, Dispatch, SetStateAction } from "react";
+import { plural } from "../lib/format";
 
 /** The 10pm typing problem: presets first, big +/- second, free entry last. */
 
@@ -77,7 +78,9 @@ export default function QuantityStepper({
           >
             ~{value}
           </span>
-          <span style={{ font: "var(--t-caption)", color: "var(--text-secondary)" }}>{unit}</span>
+          <span style={{ font: "var(--t-caption)", color: "var(--text-secondary)" }}>
+            {plural(value, unit.replace(/s$/, ""), unit)}
+          </span>
         </div>
         <button type="button" aria-label={`More ${unit}`} style={TAP} onClick={() => nudge(step)}>
           +
