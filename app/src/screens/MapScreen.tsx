@@ -19,15 +19,17 @@ export default function MapScreen({ claims, selectedId, onSelect, onClaim }: Pro
 
   return (
     <div className="mapscreen">
-      <ZoneRail zones={ZONES.zones} claims={claims} selectedId={selectedId} onSelect={onSelect} />
+      <ZoneRail zones={ZONES.zones} claims={claims} selectedId={selectedId} onSelect={onSelect} compact />
 
       <ZoneMap zones={ZONES.zones} claims={claims} focus={focus} onSelect={onSelect} />
 
       {focus && (
         <div className="mapsel">
           <div className="mapsel-text">
-            <StatusPill status={isCovered(claims, focus) ? "covered" : "open"} />
-            <span className="mapsel-name">{focus.name}</span>
+            <div className="mapsel-line">
+              <StatusPill status={isCovered(claims, focus) ? "covered" : "open"} />
+              <span className="mapsel-name">{focus.name}</span>
+            </div>
             <span className="mapsel-sub">
               {corner(focus.landmark.a, focus.landmark.b)} ·{" "}
               {isCovered(claims, focus)

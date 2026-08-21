@@ -20,21 +20,41 @@ interface Props {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   label?: string;
+  /** On the map screen the badges already report coverage, so the big
+   *  "N of 8 zones covered" header is repetition -- and on a phone it is
+   *  repetition that costs the map about 70px of height. */
+  compact?: boolean;
 }
 
-export default function ZoneRail({ zones, claims, selectedId, onSelect, label = "Tonight" }: Props) {
+export default function ZoneRail({
+  zones,
+  claims,
+  selectedId,
+  onSelect,
+  label = "Tonight",
+  compact = false,
+}: Props) {
   const covered = zones.filter((z) => isCovered(claims, z)).length;
 
   return (
-    <div className="rail">
-      <div className="rail-head">
-        <span className="ss-label rail-eyebrow">{label}</span>
-        <span className="ss-num rail-num">
-          {covered} of {zones.length}
-        </span>
-        <span className="rail-caption">zones covered</span>
-        <span className="ss-num rail-time">{clockTime()}</span>
-      </div>
+    <div className={`rail${compact ? " compact" : ""}`}>
+      {compact ? (
+        <div className="rail-head">
+          <span className="ss-label rail-eyebrow">
+            {label} · {covered} of {zones.length} covered
+          </span>
+          <span className="ss-num rail-time">{clockTime()}</span>
+        </div>
+      ) : (
+        <div className="rail-head">
+          <span className="ss-label rail-eyebrow">{label}</span>
+          <span className="ss-num rail-num">
+            {covered} of {zones.length}
+          </span>
+          <span className="rail-caption">zones covered</span>
+          <span className="ss-num rail-time">{clockTime()}</span>
+        </div>
+      )}
 
       <div className="rail-wire" role="list">
         <span aria-hidden="true" className="rail-line" />

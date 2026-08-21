@@ -199,9 +199,16 @@ button { font: inherit; color: inherit; }
 
 /* ================================================================= map ===== */
 
+/* The map tab is the map. The rail and the selection panel size to content;
+   everything left over goes to the tiles. */
 .mapscreen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
-.mapwrap { display: flex; flex-direction: column; flex: 1; min-height: 260px; background: var(--bg); }
+.mapwrap { display: flex; flex-direction: column; flex: 1; min-height: 340px; background: var(--bg); }
 .mapbox { flex: 1; min-height: 0; }
+
+.rail.compact { padding: var(--s-3) var(--s-4); }
+.rail.compact .rail-head { margin-bottom: var(--s-3); }
+.rail.compact .rail-tickets { grid-auto-columns: 104px; }
+.rail.compact .ticket { min-height: 48px; }
 
 /* Field mode is dark; OSM tiles are not. Desaturating them keeps amber and
    mint the only saturated things on the screen. Straight from the design's
@@ -239,12 +246,21 @@ button { font: inherit; color: inherit; }
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  padding: var(--s-4) var(--gutter);
+  padding: var(--s-3) var(--gutter) var(--s-4);
   border-top: 1px solid var(--border);
   background: var(--surface);
   min-width: 0;
 }
-.mapsel-text { display: flex; flex-direction: column; gap: var(--s-2); align-items: flex-start; min-width: 0; }
+.mapsel-text { display: flex; flex-direction: column; gap: var(--s-1); align-items: flex-start; min-width: 0; }
+/* Pill and name share a row so the panel does not push the map off the tab.
+   It wraps rather than truncating -- the zone name is what the driver reads. */
+.mapsel-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-width: 0;
+}
 .mapsel-name { font: var(--t-body-lg); overflow-wrap: anywhere; }
 .mapsel-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
 
