@@ -119,6 +119,70 @@ export async function setClaimStatus(
   return data as ClaimRow;
 }
 
+// --------------------------------------------------------------------- offers
+// See supabase/migration_002_offers.sql. Until that migration is applied to
+// the shared project this table does not exist, and PostgREST answers 404 /
+// PGRST205 -- which the store treats as "run offers locally" rather than as a
+// failure, so the app works either way.
+
+export interface OfferRow {
+  id: string;
+  restaurant_name: string;
+  address: string;
+  contact: string | null;
+  food_type: string;
+  quantity: number;
+  notes: string | null;
+  pickup_from: string;
+  pickup_to: string;
+  status: "open" | "accepted" | "delivered" | "cancelled";
+  volunteer_name: string | null;
+  zone_id: string | null;
+  accepted_at: string | null;
+  delivered_at: string | null;
+  created_at: string;
+}
+
+/** True when the failure is "that table is not there", not "the network died". */
+export function isMissingTable(err: unknown): boolean {
+  const e = err as { code?: string; message?: string } | null;
+  return !!e && (e.code === "PGRST205" || /schema cache|does not exist/i.test(e.message ?? ""));
+}
+
+export async function fetchOffers(): Promise<OfferRow[]> {
+  const { data, error } = await client()
+    .from("offers")
+    .select("*")
+    .order("pickup_from", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as OfferRow[];
+}
+
+export async function insertOffer(o: {
+  restaurant_name: string;
+  address: string;
+  contact: string | null;
+  food_type: string;
+  quantity: number;
+  notes: string | null;
+  pickup_from: string;
+  pickup_to: string;
+}): Promise<OfferRow> {
+  const { data, error } = await client().from("offers").insert(o).select().single();
+  if (error) throw error;
+  return data as OfferRow;
+}
+
+export async function patchOffer(id: string, patch: Partial<OfferRow>): Promise<OfferRow> {
+  const { data, error } = await client().from("offers").update(patch).eq("id", id).select().single();
+  if (error) throw error;
+  return data as OfferRow;
+}
+
+export function subscribeToOffers(onChange: () => void): Promise<() => void> {
+  return subscribeToTable("offers", onChange);
+}
+
 // Their api.js comment: Supabase can report SUBSCRIBED slightly before the
 // server finishes binding the replication filter, so a write made straight
 // after subscribing can be missed. Same settle window here.
@@ -133,6 +197,10 @@ const REALTIME_GIVE_UP_MS = 8000;
 
 /** Resolves to an unsubscribe function once the channel is genuinely ready. */
 export function subscribeToClaims(onChange: () => void): Promise<() => void> {
+  return subscribeToTable("claims", onChange);
+}
+
+function subscribeToTable(table: string, onChange: () => void): Promise<() => void> {
   return new Promise((resolve, reject) => {
     const sb = client();
 
@@ -141,7 +209,7 @@ export function subscribeToClaims(onChange: () => void): Promise<() => void> {
     // on one client can leave the second one's callback never firing, and in
     // dev StrictMode's double mount makes that easy to hit. The topic is a
     // client-side name, so this changes nothing on their side.
-    const topic = `claims-changes-${Math.random().toString(36).slice(2, 10)}`;
+    const topic = `${table}-changes-${Math.random().toString(36).slice(2, 10)}`;
     let settled = false;
 
     const finish = (fn: () => void) => {
@@ -152,7 +220,7 @@ export function subscribeToClaims(onChange: () => void): Promise<() => void> {
 
     const channel = sb
       .channel(topic)
-      .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, () => onChange())
+      .on("postgres_changes", { event: "*", schema: "public", table }, () => onChange())
       .subscribe((status, err) => {
         if (status === "SUBSCRIBED") {
           setTimeout(
@@ -162,7 +230,7 @@ export function subscribeToClaims(onChange: () => void): Promise<() => void> {
         } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
           finish(() => {
             void sb.removeChannel(channel);
-            reject(err ?? new Error(`subscribeToClaims: ${status}`));
+            reject(err ?? new Error(`subscribe(${table}): ${status}`));
           });
         }
       });
@@ -170,7 +238,7 @@ export function subscribeToClaims(onChange: () => void): Promise<() => void> {
     setTimeout(() => {
       finish(() => {
         void sb.removeChannel(channel);
-        reject(new Error("subscribeToClaims: no status after 8s"));
+        reject(new Error(`subscribe(${table}): no status after 8s`));
       });
     }, REALTIME_GIVE_UP_MS);
   });

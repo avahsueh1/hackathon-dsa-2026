@@ -87,6 +87,48 @@ export interface ZoneStat {
 
 export type ZoneStats = Record<string, ZoneStat>;
 
+// ------------------------------------------------------------------ offers
+// A restaurant posts what it has and when it can be collected. A volunteer
+// collects it and decides which zone it goes to -- so food exists before it
+// has a destination, and zone_id is null until the drop-off.
+
+export type OfferStatus = "open" | "accepted" | "delivered" | "cancelled";
+
+export interface Offer {
+  id: string;
+  restaurant_name: string;
+  address: string;
+  contact: string | null;
+  food_type: string;
+  quantity: number;
+  notes: string | null;
+  pickup_from: string;          // ISO
+  pickup_to: string;            // ISO
+  status: OfferStatus;
+  volunteer_name: string | null;
+  zone_id: string | null;
+  accepted_at: string | null;
+  delivered_at: string | null;
+  created_at: string;
+}
+
+export interface NewOffer {
+  restaurant_name: string;
+  address: string;
+  contact: string | null;
+  food_type: string;
+  quantity: number;
+  notes: string | null;
+  pickup_from: string;
+  pickup_to: string;
+}
+
+// --------------------------------------------------------------------- role
+// The two sides of the product. One device is one or the other; switching is
+// possible but deliberate, because the screens have nothing in common.
+
+export type Role = "restaurant" | "volunteer";
+
 // ------------------------------------------------------------- restaurants
 // The backend has no restaurants table and no auth, so registration is a
 // local convenience only: it saves typing the business name on every claim.

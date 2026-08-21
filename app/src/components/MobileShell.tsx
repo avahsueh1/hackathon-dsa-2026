@@ -1,16 +1,39 @@
 import type { ReactNode } from "react";
+import type { Role } from "../types";
 import Button from "./Button";
 
-export type Tab = "tonight" | "map" | "drops" | "account";
+/** The tabs differ by role, because the two sides share almost no screens. */
 
-export const TABS: { id: Tab; label: string; glyph: string }[] = [
-  { id: "tonight", label: "Tonight", glyph: "◉" },
-  { id: "map", label: "Map", glyph: "◈" },
-  { id: "drops", label: "Drops", glyph: "≡" },
+export type Tab =
+  | "post" | "log"                          // restaurant
+  | "pickups" | "run" | "map"               // volunteer
+  | "account";                              // both
+
+export interface TabDef {
+  id: Tab;
+  label: string;
+  glyph: string;
+}
+
+const RESTAURANT_TABS: TabDef[] = [
+  { id: "post", label: "Post", glyph: "＋" },
+  { id: "log", label: "Donations", glyph: "≡" },
   { id: "account", label: "You", glyph: "◍" },
 ];
 
+const VOLUNTEER_TABS: TabDef[] = [
+  { id: "pickups", label: "Pickups", glyph: "◉" },
+  { id: "run", label: "My run", glyph: "▸" },
+  { id: "map", label: "Map", glyph: "◈" },
+  { id: "account", label: "You", glyph: "◍" },
+];
+
+export function tabsFor(role: Role): TabDef[] {
+  return role === "restaurant" ? RESTAURANT_TABS : VOLUNTEER_TABS;
+}
+
 interface Props {
+  role: Role;
   tab: Tab;
   onTab: (t: Tab) => void;
   mode: "field" | "desk";
@@ -25,6 +48,7 @@ interface Props {
 }
 
 export default function MobileShell({
+  role,
   tab,
   onTab,
   mode,
@@ -34,6 +58,8 @@ export default function MobileShell({
   degraded = false,
   children,
 }: Props) {
+  const tabs = tabsFor(role);
+
   return (
     <>
       <header className="appheader">
@@ -49,7 +75,7 @@ export default function MobileShell({
       <main className="app-main">{children}</main>
 
       <nav role="tablist" className="tabbar">
-        {TABS.map((t) => {
+        {tabs.map((t) => {
           const on = t.id === tab;
           return (
             <button key={t.id} role="tab" aria-selected={on} onClick={() => onTab(t.id)}>

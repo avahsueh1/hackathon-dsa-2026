@@ -1,18 +1,27 @@
-// The registered restaurant.
+// Who this device is, per role.
 //
 // The backend has no restaurants table and no auth -- their RLS is
 // deliberately trust-based for the demo, and we are not changing it. So this
-// is local to the browser, and its only job is that a restaurant never types
-// its own name again: the name it stores becomes claims.restaurant_name on
-// every drop, which is what everyone else on the board sees.
+// is local, and its only job is that nobody types their own name twice: the
+// name it stores becomes offers.restaurant_name when a kitchen posts, and
+// offers.volunteer_name when a driver takes a run.
+//
+// Keyed BY ROLE on purpose. One device can be both -- a restaurant owner who
+// also drives -- and a single shared record meant switching to "volunteer"
+// renamed the restaurant, so its own donation log came back empty. Two roles,
+// two identities, one storage scheme.
 //
 // If auth lands later, only this file changes.
 
 import { useSyncExternalStore } from "react";
-import type { Restaurant } from "../types";
+import type { Restaurant, Role } from "../types";
 
-const KEY = "surplus-street-account-v1";
+const KEY: Record<Role, string> = {
+  restaurant: "surplus-street-account-v1",   // unchanged, so existing users keep theirs
+  volunteer: "surplus-street-volunteer-v1",
+};
 
+let activeRole: Role | null = null;
 let current: Restaurant | null = null;
 const listeners = new Set<() => void>();
 
@@ -25,23 +34,34 @@ function subscribe(l: () => void) {
   return () => void listeners.delete(l);
 }
 
-/** Async on purpose. The landing gate has to await this, and keeping the
- *  signature promise-shaped means wiring real auth later does not turn every
- *  caller inside out. */
-export async function initAccount(): Promise<Restaurant | null> {
+function read(role: Role): Restaurant | null {
   try {
-    current = JSON.parse(localStorage.getItem(KEY) || "null") as Restaurant | null;
+    return JSON.parse(localStorage.getItem(KEY[role]) || "null") as Restaurant | null;
   } catch {
-    current = null;
+    return null;
   }
+}
+
+/** Point the store at a role's identity. Called on boot and whenever the role
+ *  changes, so the name on screen always belongs to the side you are on. */
+export function loadAccountFor(role: Role | null): Restaurant | null {
+  activeRole = role;
+  current = role ? read(role) : null;
   emit();
   return current;
 }
 
+/** Async on purpose: the landing gate awaits this, and keeping the signature
+ *  promise-shaped means wiring real auth later does not turn callers inside out. */
+export async function initAccount(role: Role | null): Promise<Restaurant | null> {
+  return loadAccountFor(role);
+}
+
 export async function register(details: Restaurant): Promise<Restaurant> {
+  if (!activeRole) throw new Error("register: no role chosen");
   current = details;
   try {
-    localStorage.setItem(KEY, JSON.stringify(details));
+    localStorage.setItem(KEY[activeRole], JSON.stringify(details));
   } catch (err) {
     console.warn("account could not be saved:", err);
   }
@@ -50,17 +70,19 @@ export async function register(details: Restaurant): Promise<Restaurant> {
 }
 
 export async function signOut(): Promise<void> {
-  current = null;
-  try {
-    localStorage.removeItem(KEY);
-  } catch {
-    /* private mode -- nothing to clear */
+  if (activeRole) {
+    try {
+      localStorage.removeItem(KEY[activeRole]);
+    } catch {
+      /* private mode -- nothing to clear */
+    }
   }
+  current = null;
   emit();
 }
 
 const snapshot = () => current;
-const serverSnapshot = () => null;
+const serverSnapshot = (): Restaurant | null => null;
 
 export function useAccount(): Restaurant | null {
   return useSyncExternalStore(subscribe, snapshot, serverSnapshot);

@@ -1,35 +1,39 @@
 import { useCallback, useEffect, useState } from "react";
-import type { Zone } from "./types";
-import { initStore, useBoard, addClaim } from "./lib/store";
-import { initAccount, useAccount } from "./lib/account";
+import type { Role } from "./types";
+import { initStore, useBoard } from "./lib/store";
+import { initAccount, loadAccountFor, useAccount } from "./lib/account";
+import { initRole, setRole, useRole } from "./lib/role";
 import { hasBackend } from "./lib/supabase";
-import { ZONES, stillNeeded, totals } from "./lib/zones";
 
-import MobileShell, { type Tab } from "./components/MobileShell";
+import MobileShell, { tabsFor, type Tab } from "./components/MobileShell";
 import Toast from "./components/Toast";
 import Landing from "./screens/Landing";
-import Tonight from "./screens/Tonight";
+import RoleGate from "./screens/RoleGate";
+import PostOffer from "./screens/PostOffer";
+import RestaurantLog from "./screens/RestaurantLog";
+import Pickups from "./screens/Pickups";
+import MyRun from "./screens/MyRun";
 import MapScreen from "./screens/MapScreen";
-import Drops from "./screens/Drops";
 import Account from "./screens/Account";
-import ClaimSheet from "./screens/ClaimSheet";
 
 const TITLES: Record<Tab, string> = {
-  tonight: "Tonight",
+  post: "Post surplus",
+  log: "Your donations",
+  pickups: "Pickups",
+  run: "My run",
   map: "The map",
-  drops: "My drops",
-  account: "Your business",
+  account: "Your account",
 };
 
 export default function App() {
-  const { claims, stats, ready, live, error } = useBoard();
+  const { offers, stats, ready, live, offersShared, error } = useBoard();
   const account = useAccount();
+  const role = useRole();
 
   const [booted, setBooted] = useState(false);
   const [onLanding, setOnLanding] = useState(true);
-  const [tab, setTab] = useState<Tab>("tonight");
+  const [tab, setTab] = useState<Tab>("pickups");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [claiming, setClaiming] = useState<Zone | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [mode, setMode] = useState<"field" | "desk">("field");
 
@@ -38,8 +42,10 @@ export default function App() {
   // open -- even locally the promise settles a microtask after the first paint.
   useEffect(() => {
     initStore();
-    void initAccount().then((r) => {
-      if (r) setOnLanding(false);
+    const r = initRole();
+    void initAccount(r).then((acct) => {
+      if (acct || r) setOnLanding(false);
+      if (r) setTab(r === "restaurant" ? "post" : "pickups");
       setBooted(true);
     });
   }, []);
@@ -48,25 +54,19 @@ export default function App() {
     document.documentElement.dataset.mode = mode;
   }, [mode]);
 
-  // On the map, tapping the same zone twice clears it -- the map is still
-  // there underneath, so there is something to go back to.
   const toggle = useCallback(
     (id: string) => setSelectedId((prev) => (prev === id ? null : id)),
     [],
   );
 
-  // On Tonight, a ring is a question about geography: "where is this?".
-  // Answer it by going to the map with that zone framed and its claim button
-  // on screen. Selecting without moving only outlined a card further down the
-  // list, which on a phone is off screen and reads as nothing happening.
-  const showOnMap = useCallback((id: string) => {
-    setSelectedId(id);
-    setTab("map");
+  const pickRole = useCallback((r: Role) => {
+    setRole(r);
+    // Swap to that role's identity, so a restaurant that also drives does not
+    // come back to its own donation log under the driver's name.
+    loadAccountFor(r);
+    setTab(r === "restaurant" ? "post" : "pickups");
   }, []);
 
-  // Wait for the account AND the first load of the board. A landing page that
-  // flashes and vanishes reads as a bug, and so does a board that says
-  // "8 open" for a beat before the real numbers arrive.
   if (!booted || !ready) return <div className="device" aria-busy="true" />;
 
   if (onLanding) {
@@ -76,83 +76,100 @@ export default function App() {
           stats={stats}
           onEnter={() => setOnLanding(false)}
           onRegister={() => {
-            setTab("account");
+            pickRole("restaurant");
             setOnLanding(false);
           }}
           onDemo={() => {
-            // Covers the next open zone so the amber -> mint flip is visible
-            // before anyone signs up. On the shared board this is a real claim
-            // that everyone sees, so it is labelled as a demo drop.
-            const next = ZONES.zones.find((z) => stillNeeded(stats, z) > 0);
-            if (!next || totals(stats).open === 0) return;
-            void addClaim({
-              zoneId: next.id,
-              restaurantName: "Demo Kitchen",
-              quantity: stillNeeded(stats, next),
-              food: "Prepared hot food",
-              dropWindow: "Tonight, 8-9pm",
-            }).catch(() => setToast("Could not reach the board."));
+            pickRole("volunteer");
+            setOnLanding(false);
           }}
         />
       </div>
     );
   }
 
+  if (!role) {
+    return (
+      <div className="device">
+        <RoleGate onPick={pickRole} />
+      </div>
+    );
+  }
+
+  // A tab from the other role's bar would otherwise survive a switch.
+  const validTabs = tabsFor(role).map((t) => t.id);
+  const safeTab: Tab = validTabs.includes(tab) ? tab : validTabs[0];
+
   const status = error
     ? error
-    : hasBackend
-      ? live
-        ? "Live board · downtown San Diego"
-        : "Connected · downtown San Diego"
-      : "This browser only · downtown San Diego";
+    : !hasBackend
+      ? "This browser only · downtown San Diego"
+      : !offersShared
+        ? "Zones live · offers on this device"
+        : live
+          ? "Live board · downtown San Diego"
+          : "Connected · downtown San Diego";
 
   return (
     <div className="device">
       <MobileShell
-        tab={tab}
+        role={role}
+        tab={safeTab}
         onTab={setTab}
         mode={mode}
         onMode={() => setMode(mode === "field" ? "desk" : "field")}
-        title={TITLES[tab]}
+        title={TITLES[safeTab]}
         status={status}
         degraded={!!error}
       >
-        {tab === "tonight" && (
-          <Tonight
-            claims={claims}
-            stats={stats}
-            selectedId={selectedId}
-            onSelect={showOnMap}
-            onClaim={setClaiming}
+        {safeTab === "post" && (
+          <PostOffer
+            account={account}
+            onPosted={() => {
+              setTab("log");
+              setToast("Posted — a volunteer will pick it up");
+            }}
           />
         )}
-        {tab === "map" && (
-          <MapScreen
-            claims={claims}
-            stats={stats}
-            selectedId={selectedId}
-            onSelect={toggle}
-            onClaim={setClaiming}
-          />
-        )}
-        {tab === "drops" && (
-          <Drops claims={claims} mine={account?.name ?? null} onGoTonight={() => setTab("tonight")} />
-        )}
-        {tab === "account" && <Account onDone={() => setTab("tonight")} />}
-      </MobileShell>
 
-      {claiming && (
-        <ClaimSheet
-          zone={claiming}
-          stats={stats}
-          account={account}
-          onClose={() => setClaiming(null)}
-          onDone={(msg) => {
-            setClaiming(null);
-            setToast(msg);
-          }}
-        />
-      )}
+        {safeTab === "log" && (
+          <RestaurantLog
+            offers={offers}
+            mine={account?.name ?? null}
+            onPost={() => setTab("post")}
+          />
+        )}
+
+        {safeTab === "pickups" && (
+          <Pickups
+            offers={offers}
+            volunteer={account?.name ?? null}
+            onAccepted={() => {
+              setTab("run");
+              setToast("It’s yours — now choose where it goes");
+            }}
+            onNeedName={() => {
+              setTab("account");
+              setToast("Add your name so restaurants know who is coming");
+            }}
+          />
+        )}
+
+        {safeTab === "run" && (
+          <MyRun
+            offers={offers}
+            stats={stats}
+            volunteer={account?.name ?? null}
+            onFindWork={() => setTab("pickups")}
+          />
+        )}
+
+        {safeTab === "map" && (
+          <MapScreen stats={stats} selectedId={selectedId} onSelect={toggle} />
+        )}
+
+        {safeTab === "account" && <Account onDone={() => setTab(validTabs[0])} />}
+      </MobileShell>
 
       {toast && (
         <div className="toastwrap">

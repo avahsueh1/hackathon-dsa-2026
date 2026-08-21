@@ -15,27 +15,45 @@ import { useSyncExternalStore } from "react";
 import { hasBackend } from "./supabase";
 import {
   fetchClaims,
+  fetchOffers,
   fetchZones,
   insertClaim,
+  insertOffer,
+  isMissingTable,
+  patchOffer,
   setClaimStatus,
   subscribeToClaims,
+  subscribeToOffers,
   type ClaimRow,
 } from "./backend";
 import { ZONES } from "./zones";
-import type { Claim, ClaimStatus, ZoneStats } from "../types";
+import type { Claim, ClaimStatus, NewOffer, Offer, ZoneStats } from "../types";
 
 const CLAIM_KEY = "surplus-street-claims-v1";
 const NOTE_KEY = "surplus-street-claim-notes-v1";
+const OFFER_KEY = "surplus-street-offers-v1";
 
 interface Board {
   claims: Claim[];
+  offers: Offer[];
   stats: ZoneStats;
   ready: boolean;
   live: boolean;
+  /** True once the shared `offers` table has answered. False means the
+   *  migration is not applied yet and offers are local to this browser. */
+  offersShared: boolean;
   error: string | null;
 }
 
-let board: Board = { claims: [], stats: {}, ready: false, live: false, error: null };
+let board: Board = {
+  claims: [],
+  offers: [],
+  stats: {},
+  ready: false,
+  live: false,
+  offersShared: false,
+  error: null,
+};
 const listeners = new Set<() => void>();
 
 function publish(next: Partial<Board>) {
@@ -96,15 +114,65 @@ function writeLocal(list: Claim[]) {
   }
 }
 
+// ------------------------------------------------------------------ offers
+
+function readLocalOffers(): Offer[] {
+  try {
+    return JSON.parse(localStorage.getItem(OFFER_KEY) || "[]") as Offer[];
+  } catch {
+    return [];
+  }
+}
+
+function writeLocalOffers(list: Offer[]) {
+  try {
+    localStorage.setItem(OFFER_KEY, JSON.stringify(list));
+  } catch (err) {
+    console.warn("offers could not be saved:", err);
+  }
+}
+
+function newId(): string {
+  return globalThis.crypto?.randomUUID?.() ?? `local-${Date.now()}-${Math.random()}`;
+}
+
+/** Set once we know whether the shared table exists, so every later write
+ *  goes to the same place the reads came from. */
+let offersShared = false;
+
+async function loadOffers(): Promise<Offer[]> {
+  if (!hasBackend) return readLocalOffers();
+  try {
+    const rows = await fetchOffers();
+    offersShared = true;
+    return rows as Offer[];
+  } catch (err) {
+    if (isMissingTable(err)) {
+      // The migration is not applied yet. This is a known state, not a
+      // failure -- run offers on this device so the app still works.
+      offersShared = false;
+      return readLocalOffers();
+    }
+    throw err;
+  }
+}
+
 // ------------------------------------------------------------------- stats
 
-/** Offline: derive coverage from local claims and the shipped zone model. */
-function localStats(claims: Claim[]): ZoneStats {
+/** Offline: derive coverage from local claims, local offers and the shipped
+ *  zone model. */
+function localStats(claims: Claim[], offers: Offer[] = board.offers): ZoneStats {
   const out: ZoneStats = {};
   for (const z of ZONES.zones) {
-    const claimed = claims
+    const fromClaims = claims
       .filter((c) => c.zone_id === z.id && c.status !== "cancelled")
       .reduce((a, c) => a + c.quantity, 0);
+    const fromOffers = offers
+      .filter(
+        (o) => o.zone_id === z.id && (o.status === "accepted" || o.status === "delivered"),
+      )
+      .reduce((a, o) => a + o.quantity, 0);
+    const claimed = fromClaims + fromOffers;
     const expected = z.expected_tonight;
     const pct = expected ? Math.min(1, claimed / expected) : 1;
     const covered = expected ? claimed >= expected : true;
@@ -121,7 +189,11 @@ function localStats(claims: Claim[]): ZoneStats {
 
 async function refresh(): Promise<void> {
   try {
-    const [zoneRows, claimRows] = await Promise.all([fetchZones(), fetchClaims()]);
+    const [zoneRows, claimRows, offerRows] = await Promise.all([
+      fetchZones(),
+      fetchClaims(),
+      loadOffers(),
+    ]);
 
     const stats: ZoneStats = {};
     for (const r of zoneRows) {
@@ -145,7 +217,29 @@ async function refresh(): Promise<void> {
       };
     }
 
-    publish({ claims: withNotes(claimRows), stats, ready: true, error: null });
+    // When offers are local the server's food_claimed cannot know about them,
+    // so fold them in here. Once the migration lands the trigger does it and
+    // this adds nothing, because routed offers are already in food_claimed.
+    if (!offersShared) {
+      for (const o of offerRows) {
+        if (!o.zone_id || (o.status !== "accepted" && o.status !== "delivered")) continue;
+        const st = stats[o.zone_id];
+        if (!st) continue;
+        st.claimed += o.quantity;
+        st.pct = st.expected ? Math.min(1, st.claimed / st.expected) : 1;
+        st.covered = st.expected ? st.claimed >= st.expected : true;
+        st.status = st.covered ? "covered" : st.claimed > 0 ? "partial" : "uncovered";
+      }
+    }
+
+    publish({
+      claims: withNotes(claimRows),
+      offers: offerRows,
+      stats,
+      ready: true,
+      offersShared,
+      error: null,
+    });
   } catch (err) {
     // A dead backend must not blank the screen mid-service. Fall back to
     // whatever is already on screen, and say so.
@@ -159,6 +253,7 @@ async function refresh(): Promise<void> {
 
 let started = false;
 let unsubscribeRealtime: (() => void) | null = null;
+let unsubscribeOffers: (() => void) | null = null;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 // Slow on purpose. This is the safety net for when realtime does not come up,
@@ -177,7 +272,15 @@ export function initStore(): void {
 
   if (!hasBackend) {
     const claims = readLocal();
-    publish({ claims, stats: localStats(claims), ready: true, live: false });
+    const offers = readLocalOffers();
+    publish({
+      claims,
+      offers,
+      stats: localStats(claims, offers),
+      ready: true,
+      live: false,
+      offersShared: false,
+    });
     return;
   }
 
@@ -190,6 +293,17 @@ export function initStore(): void {
     .then((off) => {
       unsubscribeRealtime = off;
       publish({ live: true });
+      // Only worth a channel if the table is actually there.
+      if (offersShared) {
+        subscribeToOffers(() => void refresh())
+          .then((offOffers) => {
+            unsubscribeOffers = offOffers;
+          })
+          .catch((err) => {
+            console.warn("offer realtime unavailable, polling instead:", err);
+            startPolling();
+          });
+      }
     })
     .catch((err) => {
       // Polling is not as good, but a board that goes stale for twenty seconds
@@ -204,6 +318,8 @@ export function initStore(): void {
 export function teardownStore(): void {
   unsubscribeRealtime?.();
   unsubscribeRealtime = null;
+  unsubscribeOffers?.();
+  unsubscribeOffers = null;
   if (pollTimer) clearInterval(pollTimer);
   pollTimer = null;
   started = false;
@@ -251,6 +367,78 @@ export async function addClaim(input: NewClaim): Promise<void> {
     saveNote(row.id, { food: input.food ?? null, drop_window: input.dropWindow ?? null });
   }
   await refresh();
+}
+
+// ----------------------------------------------------------- offer writes
+// Every one of these goes through the same two paths: the shared table when
+// the migration is applied, this browser when it is not. No screen knows
+// which, so applying the migration changes nothing above this line.
+
+async function writeOffer(id: string, patch: Partial<Offer>): Promise<void> {
+  if (offersShared) {
+    await patchOffer(id, patch);
+    await refresh();
+    return;
+  }
+  const offers = board.offers.map((o) => (o.id === id ? { ...o, ...patch } : o));
+  writeLocalOffers(offers);
+  publish({ offers, stats: localStats(board.claims, offers) });
+}
+
+/** A restaurant posts surplus: what, how much, and when it can be collected. */
+export async function postOffer(input: NewOffer): Promise<void> {
+  if (offersShared) {
+    await insertOffer(input);
+    await refresh();
+    return;
+  }
+  const local: Offer = {
+    ...input,
+    id: newId(),
+    status: "open",
+    volunteer_name: null,
+    zone_id: null,
+    accepted_at: null,
+    delivered_at: null,
+    created_at: new Date().toISOString(),
+  };
+  const offers = [local, ...board.offers];
+  writeLocalOffers(offers);
+  publish({ offers, stats: localStats(board.claims, offers) });
+}
+
+/** A volunteer takes the run. It leaves everyone else's list. */
+export function acceptOffer(id: string, volunteer: string): Promise<void> {
+  return writeOffer(id, {
+    status: "accepted",
+    volunteer_name: volunteer,
+    accepted_at: new Date().toISOString(),
+  });
+}
+
+/** The volunteer chooses where it goes. This is the decision the whole split
+ *  exists for, and the moment the food starts counting towards a zone. */
+export function routeOffer(id: string, zoneId: string): Promise<void> {
+  return writeOffer(id, { zone_id: zoneId });
+}
+
+export function deliverOffer(id: string): Promise<void> {
+  return writeOffer(id, { status: "delivered", delivered_at: new Date().toISOString() });
+}
+
+/** Handing a run back: it returns to the feed for someone else. */
+export function releaseOffer(id: string): Promise<void> {
+  return writeOffer(id, {
+    status: "open",
+    volunteer_name: null,
+    zone_id: null,
+    accepted_at: null,
+  });
+}
+
+/** No DELETE policy, by design -- withdrawing keeps the row for the log. */
+export function cancelOffer(id: string): Promise<void> {
+  return writeOffer(id, { status: "cancelled" });
 }
 
 async function changeStatus(id: string, status: ClaimStatus): Promise<void> {

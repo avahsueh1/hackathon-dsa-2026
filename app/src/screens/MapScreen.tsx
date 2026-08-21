@@ -1,23 +1,26 @@
-import type { Claim, Zone, ZoneStats } from "../types";
-import { ZONES, claimsFor, isCovered, mealsFor, stillNeeded } from "../lib/zones";
+import type { ZoneStats } from "../types";
+import { ZONES, isCovered, mealsFor, stillNeeded } from "../lib/zones";
 import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import ZoneMap from "../components/ZoneMap";
 import ZoneRail from "../components/ZoneRail";
 import StatusPill from "../components/StatusPill";
-import Button from "../components/Button";
+
+/**
+ * Where the need is tonight. Read-only on purpose: under the split, food is
+ * routed to a zone from a run you are already holding, not claimed out of
+ * thin air from a map. This screen answers "where should I take it?" before
+ * you have anything to take.
+ */
 
 interface Props {
-  claims: Claim[];
   stats: ZoneStats;
   selectedId: string | null;
   onSelect: (id: string) => void;
-  onClaim: (z: Zone) => void;
 }
 
-export default function MapScreen({ claims, stats, selectedId, onSelect, onClaim }: Props) {
+export default function MapScreen({ stats, selectedId, onSelect }: Props) {
   const focus = ZONES.zones.find((z) => z.id === selectedId) ?? null;
-  const going = focus ? claimsFor(claims, focus.id) : [];
   const covered = focus ? isCovered(stats, focus) : false;
 
   return (
@@ -26,8 +29,6 @@ export default function MapScreen({ claims, stats, selectedId, onSelect, onClaim
 
       <ZoneMap zones={ZONES.zones} stats={stats} focus={focus} onSelect={onSelect} />
 
-      {/* Tapping a zone puts its claim button here, in the legend's place
-          rather than stacked below it -- down there the tab bar cut it off. */}
       {focus ? (
         <div className="mapsel">
           <div className="mapsel-line">
@@ -39,12 +40,7 @@ export default function MapScreen({ claims, stats, selectedId, onSelect, onClaim
             {covered
               ? `~${fmt(mealsFor(stats, focus))} ${plural(mealsFor(stats, focus), "serving")} coming`
               : `~${fmt(stillNeeded(stats, focus))} still needed`}
-            {going.length > 0 ? ` · ${going[0].restaurant_name}` : ""}
-            {going.length > 1 ? ` +${going.length - 1}` : ""}
           </span>
-          <Button variant={covered ? "secondary" : "primary"} fullWidth onClick={() => onClaim(focus)}>
-            {covered ? "Add to this drop" : "Claim this zone"}
-          </Button>
         </div>
       ) : (
         <div className="maplegend">

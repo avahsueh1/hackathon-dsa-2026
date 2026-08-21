@@ -492,3 +492,119 @@ button { font: inherit; color: inherit; }
   color: var(--mint-ink);
   border-color: var(--mint-solid);
 }
+
+/* ========================================================== the role gate === */
+
+.rolegate {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: calc(env(safe-area-inset-top, 0px) + var(--s-6)) var(--gutter) var(--s-6);
+  background: var(--bg);
+}
+.rolehead { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--s-2); }
+.roletitle {
+  margin: 0;
+  font-family: var(--font-ui);
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.rolecard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--s-2);
+  text-align: left;
+  padding: var(--card-pad);
+  cursor: pointer;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  transition: border-color var(--dur-flip) var(--ease);
+}
+.rolecard:active { transform: scale(var(--press-scale)); }
+.rolecard:hover { border-color: var(--amber-solid); }
+.roleglyph { font-size: 20px; line-height: 1; color: var(--amber-solid); }
+.rolecard-title { font: var(--t-title); letter-spacing: -0.01em; }
+.rolecard-body { font: var(--t-caption); color: var(--text-secondary); text-wrap: pretty; }
+.rolefine { margin-top: var(--s-2); }
+.rolecta { margin-top: auto; padding-top: var(--s-4); }
+
+/* ============================================================ the pickups === */
+
+.pickup-when { color: var(--amber-ink); white-space: nowrap; }
+
+/* ================================================================ the run === */
+
+.runscreen { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+.runhead {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-4) var(--gutter);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-width: 0;
+}
+
+.runpick { flex: none; padding: var(--s-4) var(--gutter) var(--s-2); }
+
+/* The shortlist: four most-short zones, so the obvious answer is at the top
+   and the map is for when it is not obvious. */
+.runzones {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: 0 var(--gutter) var(--s-3);
+}
+.runzone {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: var(--tap-min);
+  padding: var(--s-2) var(--s-3);
+  cursor: pointer;
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  color: var(--text);
+  min-width: 0;
+}
+.runzone.on { border-color: var(--blue); outline: 1px solid var(--blue); }
+.runzone .ring { flex: none; }
+.runzone-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.runzone-name {
+  font: var(--t-body-lg);
+  font-weight: 650;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.runzone-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
+
+.runmap { flex: 1; min-height: 180px; display: flex; }
+.runmap .mapwrap { flex: 1; min-height: 0; }
+
+.runactions {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3) var(--gutter) var(--s-4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
