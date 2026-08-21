@@ -54,8 +54,22 @@ blocks where people sleep is surveillance of people who cannot consent to it, so
 readable copy:
 
 ```bash
-python3 scripts/extract_ui.py    # -> ui-source.html, ~154 KB, all code
+python3 scripts/extract_ui.py             # -> ui/ folder + ui.zip
+python3 scripts/extract_ui.py --single    # -> ui-source.html, one file
 ```
+
+The folder splits it the normal way and **still opens by double-click, offline**:
+
+| | |
+|---|---|
+| `ui/index.html` | markup only, 13 KB |
+| `ui/styles.css` | 40 KB |
+| `ui/app.js` | 103 KB |
+| `ui/data.js` | the built JSON as `window.HEATMAP_DATA` |
+
+The data is a `.js` global rather than a `.json` file on purpose: browsers block
+`fetch` and `XHR` on `file://`, but `<script src>` loads fine, so the folder
+needs no server.
 
 That output is git-ignored because it is derived — edit `index.html` itself.
 It is both the source and the artifact: `build_page.py` only rewrites what sits

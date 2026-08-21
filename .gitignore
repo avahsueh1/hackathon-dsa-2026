@@ -6,3 +6,5 @@ node_modules/
 *.pyc
 data/raw/mts_google_transit.zip
 ui-source.html
+ui/
+ui.zip
