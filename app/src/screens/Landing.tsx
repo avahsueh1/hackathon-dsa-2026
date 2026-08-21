@@ -1,8 +1,8 @@
 import { useMemo } from "react";
 import Button from "../components/Button";
+import ZoneMap from "../components/ZoneMap";
 import type { ZoneStats } from "../types";
-import { ZONES, isCovered, stillNeeded, totals } from "../lib/zones";
-import { corner } from "../lib/streets";
+import { ZONES, totals } from "../lib/zones";
 import { fmt } from "../lib/format";
 
 interface Props {
@@ -34,19 +34,13 @@ export default function Landing({ stats, onEnter, onRegister, onDemo }: Props) {
           see someone is going.
         </p>
 
+        {/* The real downtown, coloured by tonight's real coverage. A list of
+            cross-streets means nothing to someone who has not seen the app;
+            the shape of the city does. */}
         <div className="lpreview">
-          {ZONES.zones.slice(0, 5).map((z) => {
-            const covered = isCovered(stats, z);
-            return (
-              <div key={z.id} className={`lrow${covered ? " covered" : ""}`}>
-                <span className="lchip" />
-                <span className="lname">{corner(z.landmark.a, z.landmark.b)}</span>
-                <span className="lmeta">
-                  {covered ? "covered" : `${fmt(stillNeeded(stats, z))} short`}
-                </span>
-              </div>
-            );
-          })}
+          <div className="lmap">
+            <ZoneMap zones={ZONES.zones} stats={stats} interactive={false} />
+          </div>
           <div className="lfoot">
             <span className={`statuspill${t.open === 0 ? " covered" : ""}`}>
               {t.covered} of {t.total} covered

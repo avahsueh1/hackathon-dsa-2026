@@ -90,13 +90,13 @@ button { font: inherit; color: inherit; }
 .ticket {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
   min-width: 0;
-  min-height: 46px;
-  padding: 6px var(--s-1);
+  padding: var(--s-2) 4px;
   cursor: pointer;
-  text-align: left;
+  text-align: center;
   border-radius: 0 0 var(--r-sm) var(--r-sm);
   background: transparent;
   border: 1px solid var(--amber-solid);
@@ -113,14 +113,8 @@ button { font: inherit; color: inherit; }
   color: var(--mint-ink);
 }
 .ticket.on { outline: 2px solid var(--blue); outline-offset: 2px; }
-.ticket-n {
-  font: var(--t-label);
-  letter-spacing: var(--tracking-label);
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  white-space: nowrap;
-}
+.ticket .ring { flex: none; display: block; }
+
 .ticket-place {
   font-size: 9px;
   line-height: 1.25;
@@ -217,8 +211,8 @@ button { font: inherit; color: inherit; }
 .rail.compact { padding: var(--s-3) var(--s-4); }
 .rail.compact .rail-head { margin-bottom: var(--s-3); }
 .rail.compact .rail-time { font: var(--t-caption); }
-.rail.compact .ticket { min-height: 40px; }
-.rail.compact .ticket-place { -webkit-line-clamp: 1; }
+.rail.compact .ticket { padding: 6px 4px; gap: 3px; }
+.rail.compact .ticket-place { -webkit-line-clamp: 1; font-size: 8px; }
 
 /* Field mode is dark; OSM tiles are not. Desaturating them keeps amber and
    mint the only saturated things on the screen. Straight from the design's
@@ -255,13 +249,12 @@ button { font: inherit; color: inherit; }
   flex: none;
   display: flex;
   flex-direction: column;
-  gap: var(--s-3);
+  gap: var(--s-2);
   padding: var(--s-3) var(--gutter) var(--s-4);
   border-top: 1px solid var(--border);
   background: var(--surface);
   min-width: 0;
 }
-.mapsel-text { display: flex; flex-direction: column; gap: var(--s-1); align-items: flex-start; min-width: 0; }
 /* Pill and name share a row so the panel does not push the map off the tab.
    It wraps rather than truncating -- the zone name is what the driver reads. */
 .mapsel-line {
@@ -402,6 +395,8 @@ button { font: inherit; color: inherit; }
 .llede { margin: 0; font: var(--t-body-lg); color: var(--text-secondary); text-wrap: pretty; }
 
 .lpreview { border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; }
+.lmap { height: 230px; display: flex; }
+.lmap .mapwrap { flex: 1; min-height: 0; }
 .lrow {
   display: flex;
   align-items: center;

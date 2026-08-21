@@ -18,6 +18,7 @@ interface Props {
 export default function MapScreen({ claims, stats, selectedId, onSelect, onClaim }: Props) {
   const focus = ZONES.zones.find((z) => z.id === selectedId) ?? null;
   const going = focus ? claimsFor(claims, focus.id) : [];
+  const covered = focus ? isCovered(stats, focus) : false;
 
   return (
     <div className="mapscreen">
@@ -25,36 +26,37 @@ export default function MapScreen({ claims, stats, selectedId, onSelect, onClaim
 
       <ZoneMap zones={ZONES.zones} stats={stats} focus={focus} onSelect={onSelect} />
 
-      {focus && (
+      {/* Tapping a zone puts its claim button here, in the legend's place
+          rather than stacked below it -- down there the tab bar cut it off. */}
+      {focus ? (
         <div className="mapsel">
-          <div className="mapsel-text">
-            <div className="mapsel-line">
-              <StatusPill status={isCovered(stats, focus) ? "covered" : "open"} />
-              <span className="mapsel-name">{focus.name}</span>
-            </div>
-            <span className="mapsel-sub">
-              {corner(focus.landmark.a, focus.landmark.b)} ·{" "}
-              {isCovered(stats, focus)
-                ? `~${fmt(mealsFor(stats, focus))} ${plural(mealsFor(stats, focus), "serving")} coming`
-                : `~${fmt(stillNeeded(stats, focus))} still needed`}
-            </span>
-            {going.length > 0 && (
-              <span className="mapsel-sub">
-                {going.length === 1
-                  ? `${going[0].restaurant_name} is going`
-                  : `${going[0].restaurant_name} and ${going.length - 1} other${
-                      going.length > 2 ? "s" : ""
-                    } are going`}
-              </span>
-            )}
+          <div className="mapsel-line">
+            <StatusPill status={covered ? "covered" : "open"} />
+            <span className="mapsel-name">{focus.name}</span>
           </div>
-          <Button
-            variant={isCovered(stats, focus) ? "secondary" : "primary"}
-            fullWidth
-            onClick={() => onClaim(focus)}
-          >
-            {isCovered(stats, focus) ? "Add to this drop" : "Claim this zone"}
+          <span className="mapsel-sub">
+            {corner(focus.landmark.a, focus.landmark.b)} ·{" "}
+            {covered
+              ? `~${fmt(mealsFor(stats, focus))} ${plural(mealsFor(stats, focus), "serving")} coming`
+              : `~${fmt(stillNeeded(stats, focus))} still needed`}
+            {going.length > 0 ? ` · ${going[0].restaurant_name}` : ""}
+            {going.length > 1 ? ` +${going.length - 1}` : ""}
+          </span>
+          <Button variant={covered ? "secondary" : "primary"} fullWidth onClick={() => onClaim(focus)}>
+            {covered ? "Add to this drop" : "Claim this zone"}
           </Button>
+        </div>
+      ) : (
+        <div className="maplegend">
+          <span>
+            <span style={{ color: "var(--mint-ink)" }}>◉</span> fully covered
+          </span>
+          <span>
+            <span style={{ color: "var(--amber-ink)" }}>◐</span> partly covered
+          </span>
+          <span>
+            <span style={{ color: "#FF9A73" }}>○</span> nobody going yet
+          </span>
         </div>
       )}
     </div>

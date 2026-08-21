@@ -1,7 +1,6 @@
 import type { Claim, Zone, ZoneStats } from "../types";
 import type { NeedLevel } from "../components/StatusPill";
-import { ZONES, byUrgency, isCovered, stillNeeded } from "../lib/zones";
-import { fmt } from "../lib/format";
+import { ZONES, byUrgency, isCovered } from "../lib/zones";
 import ZoneRail from "../components/ZoneRail";
 import ZoneCard from "../components/ZoneCard";
 
@@ -39,12 +38,6 @@ export default function Tonight({ claims, stats, selectedId, onSelect, onClaim }
             onClaim={onClaim}
           />
         ))}
-
-        <p className="fineprint">
-          {ZONES.privacy} Need is what a zone is expected to want tonight, minus what
-          restaurants have already claimed &mdash; currently{" "}
-          {fmt(stillNeeded(stats, ordered[0]))} in the zone at the top.
-        </p>
       </div>
     </>
   );

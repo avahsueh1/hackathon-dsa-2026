@@ -1,17 +1,22 @@
 import type { Zone, ZoneStats } from "../types";
-import { isCovered } from "../lib/zones";
+import { coverage, isCovered } from "../lib/zones";
 import { corner } from "../lib/streets";
 import { clockTime } from "../lib/format";
+import ProgressRing from "./ProgressRing";
 
 /**
  * The signature element. Tonight's zones hung on a wire like kitchen tickets:
  * mint = covered, amber = nobody going yet. It is the legend and the summary
  * at once, and it sits at the top of every screen.
  *
- * The design's rail divides the width evenly (minmax(0, 1fr)). That was drawn
- * against nine mock zones on a wide artboard; with eight real zones on a 390px
- * phone each ticket would be 44px and the cross-street unreadable. So the
- * tickets keep a legible fixed width and the wire scrolls sideways instead.
+ * Each ticket is a coverage donut with the percentage inside and the corner
+ * underneath -- the shape the map badges used, which reads better here where
+ * eight of them line up and can be compared than scattered over tiles where
+ * they overlapped each other.
+ *
+ * A grid rather than the design's evenly-divided row: with eight real zones on
+ * a phone, even division gives each one 44px, and a sideways scroller turned
+ * the summary into a task.
  */
 
 interface Props {
@@ -20,9 +25,8 @@ interface Props {
   selectedId?: string | null;
   onSelect?: (id: string) => void;
   label?: string;
-  /** On the map screen the badges already report coverage, so the big
-   *  "N of 8 zones covered" header is repetition -- and on a phone it is
-   *  repetition that costs the map about 70px of height. */
+  /** On the map screen the tiles carry the detail, so the big
+   *  "N of 8 zones covered" header collapses to one line. */
   compact?: boolean;
 }
 
@@ -63,8 +67,9 @@ export default function ZoneRail({
       <div className="rail-wire" role="list">
         <span aria-hidden="true" className="rail-line" />
         <div className="rail-tickets">
-          {zones.map((z, i) => {
+          {zones.map((z) => {
             const cov = isCovered(stats, z);
+            const pct = coverage(stats, z);
             const on = z.id === selectedId;
             return (
               <button
@@ -72,15 +77,10 @@ export default function ZoneRail({
                 role="listitem"
                 type="button"
                 onClick={() => onSelect?.(z.id)}
-                title={`${z.name} — ${cov ? "covered" : "open"}`}
+                title={`${z.name} — ${Math.round(pct * 100)}% covered`}
                 className={`ticket${cov ? " covered" : ""}${on ? " on" : ""}`}
               >
-                <span className="ticket-n">
-                  <span aria-hidden="true" style={{ fontSize: 11 }}>
-                    {cov ? "◉" : "○"}
-                  </span>
-                  {i + 1}
-                </span>
+                <ProgressRing value={pct} covered={cov} size={compact ? 34 : 42} />
                 <span className="ticket-place">{corner(z.landmark.a, z.landmark.b)}</span>
               </button>
             );
