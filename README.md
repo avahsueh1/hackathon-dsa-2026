@@ -1,7 +1,9 @@
 # Downtown SD Homelessness — Block-Level Heat Map
 
 Block-level heat map of estimated unsheltered persons across **382 downtown San
-Diego blocks**, with a time slider spanning **102 months (2017-01 → 2025-12)**.
+Diego blocks**, with a time slider spanning **108 months (2017-01 → 2025-12)**.
+(The spec says 102; the delivered data carries 108 — see "Three places the
+data disagreed with the spec".)
 
 Built for the San Diego DSA hackathon, "Downtown Homelessness" challenge.
 
@@ -38,7 +40,7 @@ as-is, so their schema is a contract (spec §11).
 ## The core idea
 
 There are monthly published counts for **7 areas**, but block-level counts for
-only **12 dates**. 382 blocks × 102 months cannot be interpolated from 12
+only **12 dates**. 382 blocks × 108 months cannot be interpolated from 12
 observations. So:
 
 **Area totals supply the LEVEL. Block counts supply the SHAPE. Multiply them.**
@@ -64,21 +66,30 @@ Per spec §8, rooted at the repo root:
 │       ├── values.json
 │       └── insights.json
 ├── scripts/
-│   ├── check_data.py         # row-count + reconciliation checks — run first
-│   ├── build_heatmap_data.py # the precompute pipeline (not written yet)
-│   └── validate_palette.js   # color-ramp validator (not written yet)
+│   ├── check_data.py          # row-count + reconciliation checks — run first
+│   ├── build_heatmap_data.py  # the precompute pipeline (Steps A–E + tests 1–8)
+│   ├── build_transit_data.py  # MTS trolley lines/stations, clipped to downtown
+│   ├── build_shelter_data.py  # HIC beds + FY25 funding + siting gap model
+│   ├── build_health_data.py   # HCAI licensed health facilities near downtown
+│   └── build_page.py          # inlines data/out/*.json into index.html
 ├── docs/
 │   └── HEATMAP_SPEC.md       # authoritative implementation spec
-├── index.html                # self-contained: inline CSS + JS + data (not written yet)
+├── index.html                # self-contained: inline CSS + JS + data
 └── README.md
 ```
+
+`data/out/` also carries `transit.json`, `shelters.json` and `health.json`. All
+three are optional — `build_page.py` hides those layers and still builds if any
+is missing.
 
 `data/out/` is git-ignored — it is fully reproducible from `data/raw/`.
 
 ## Getting the data
 
-Seven source files go in `data/raw/` (an eighth, `2025_HIC.csv`, is Layer 3
-territory and unused here). Expected sizes, from spec §1:
+Seven source files go in `data/raw/` for the heat map itself. `2025_HIC.csv` and
+`health_facility_locations.csv` feed the shelter and health layers instead —
+spec §10 puts those in Layer 3, so they are additive and never touch
+`geometry.json` or `values.json`. Expected sizes, from spec §1:
 
 | File | Rows | Role |
 |---|---|---|
@@ -101,15 +112,81 @@ file specifically to catch this.
 # 1. Verify the raw data before anything else. Exits non-zero on any problem.
 python3 scripts/check_data.py
 
-# 2. Precompute the static JSON into data/out/. (not written yet)
+# 2. Precompute the static JSON into data/out/. Fails the build on any of the
+#    8 acceptance tests, rather than warning.
 python3 scripts/build_heatmap_data.py
 
-# 3. Open the result. No server needed — that is the point.
+# 3. Optional overlays. build_transit_data.py needs mts_google_transit.zip in
+#    data/raw/ (see "Outside data" below); both are skippable.
+python3 scripts/build_transit_data.py
+python3 scripts/build_shelter_data.py
+python3 scripts/build_health_data.py
+
+# 4. Inline everything into index.html.
+python3 scripts/build_page.py
+
+# 5. Open the result. No server needed — that is the point.
 open index.html
 ```
 
 Step 1 gates step 2 deliberately. Per spec §9: *get the numbers right first —
 polish on wrong numbers is worth nothing.*
+
+`build_page.py` is idempotent: it rewrites only the region between
+`/*__DATA_BEGIN__*/` and `/*__DATA_END__*/`, so `index.html` is both the source
+you edit and the artifact you ship.
+
+## What the page does
+
+| Control | Behaviour |
+|---|---|
+| Time slider | 108 months. Play at ~4/sec, ←/→ steps, shift+←/→ jumps a year, space plays. Observed months get tall ticks, gap months orange. |
+| Blocks / Heat | Choropleth on fixed breaks, or a blurred kernel-density layer. Both share the same breaks, so switching never changes what a colour means. |
+| Trolley / Shelters / Health | MTS rail lines and stations; HIC shelters as circles sized by bed count, red at ≥95% full; HCAI health facilities as squares coloured by class. Shape carries the category, so the two never rely on colour alone. Hover any of them for detail. |
+| **Select area** | Drag a box over the map for aggregate stats on just those blocks — persons, share of downtown, beds inside, unmet gap and its annual cost, plus health facilities inside it and a 108-month sparkline of the selection. Follows the slider and stays pinned through zoom/pan. |
+| Zoom / pan | Scroll and drag. Street labels counter-scale; minor streets appear past ~2.2×. |
+
+Box-select includes a block when the box **overlaps its polygon**, not merely
+its centroid — spec §5.5 notes two centroids fall outside their own block.
+
+## Outside data
+
+Sources beyond the heat map's own seven files. Anything fetched from the network
+is fetched at **build time only** and baked into `index.html`, so the delivered
+page still makes zero network requests and satisfies §0.
+
+| Source | Used for | Provenance |
+|---|---|---|
+| MTS GTFS feed | 5 trolley lines, 30 downtown stations | [MTS developer feed](https://www.sdmts.com/business-center/app-developers), `google_transit.zip` |
+| 2025 HIC | 21 downtown shelters, 1,516 beds | already in the bundle as `2025_HIC.csv` |
+| CA HCAI facility file | 21 on-map health facilities, 205 within 10 km | `health_facility_locations.csv`, 15,097 rows statewide |
+| City IBA report 24-24 REV | FY25 per-program shelter funding | [FY 2025 Homelessness Programs and Funding](https://www.sandiego.gov/sites/default/files/2024-09/24-24-rev-fy-2025-homelessness-programs-and-funding_rev.pdf), Attachment I Table 1 |
+
+The GTFS zip is not committed. To refresh it:
+
+```bash
+curl -L -o data/raw/mts_google_transit.zip \
+  https://www.sdmts.com/google_transit_files/google_transit.zip
+```
+
+## Three places the data disagreed with the spec
+
+Per the handoff working agreement — the data wins, but say so out loud.
+
+1. **108 months, not 102.** `DowntownCounts_Monthly.csv` runs 2017-01 → 2025-12
+   inclusive. The pipeline uses all 108 and prints a note.
+2. **Outside Perimeter is observed on 5 block-level dates, not 4** (§3.2), and
+   has *no published area total at all* before 2021-04 — 55 null months. Those
+   blocks render as "no data" grey, never as zero, and are never hatched:
+   "no published total" is a different claim from "estimated".
+3. **§2.4 quotes two different estimators.** The per-area top-3 table is the
+   recency-weighted share of §3.2 — the pipeline reproduces all 18 rows to
+   ≤0.1pp. The concentration headline (29.7 / 47.7 / 66.2 / 8.1) only
+   reproduces on an *equal-weighted mean of each date's downtown share*.
+   Both are computed and labelled; test 8 asserts the headline. On the
+   recency-weighted basis the same panel gives 33.2 / 51.8 / 70.2 —
+   concentration has intensified in recent counts, which strengthens the claim
+   rather than contradicting it.
 
 ## Two rules that will bite you
 
