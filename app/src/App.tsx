@@ -113,7 +113,6 @@ export default function App() {
             selectedId={selectedId}
             onSelect={select}
             onClaim={setClaiming}
-            onOpenMap={() => setTab("map")}
           />
         )}
         {tab === "map" && (

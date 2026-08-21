@@ -159,6 +159,17 @@ async function refresh(): Promise<void> {
 
 let started = false;
 let unsubscribeRealtime: (() => void) | null = null;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+// Slow on purpose. This is the safety net for when realtime does not come up,
+// not a replacement for it: often enough that a second phone is not stuck on
+// a stale board through a service, rare enough to be invisible.
+const POLL_MS = 20000;
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(() => void refresh(), POLL_MS);
+}
 
 export function initStore(): void {
   if (started) return;
@@ -181,16 +192,20 @@ export function initStore(): void {
       publish({ live: true });
     })
     .catch((err) => {
-      // Polling is not a substitute, but a board that updates on your own
-      // actions still beats one that appears frozen.
-      console.warn("realtime unavailable, falling back to refetch on write:", err);
+      // Polling is not as good, but a board that goes stale for twenty seconds
+      // beats one that silently never updates again -- which is what used to
+      // happen here, with the header sitting on "Connected" forever.
+      console.warn("realtime unavailable, polling instead:", err);
       publish({ live: false });
+      startPolling();
     });
 }
 
 export function teardownStore(): void {
   unsubscribeRealtime?.();
   unsubscribeRealtime = null;
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = null;
   started = false;
 }
 

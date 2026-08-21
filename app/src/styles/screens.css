@@ -38,14 +38,26 @@ button { font: inherit; color: inherit; }
   min-width: 0;
 }
 
+/* Label and time on one line, the count on the next. As a single reflowing
+   row it broke into "TONIGHT 0 of 8 zones covered" with the clock stranded
+   underneath and a ragged gap above it. */
 .rail-head {
   display: flex;
   align-items: baseline;
+  justify-content: space-between;
   gap: var(--s-3);
-  flex-wrap: wrap;
-  margin-bottom: var(--s-4);
 }
 .rail-eyebrow { color: var(--text-secondary); }
+.rail-time { font: var(--t-caption); color: var(--text-muted); white-space: nowrap; }
+
+.rail-summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s-2);
+  margin-top: 2px;
+  margin-bottom: var(--s-4);
+  min-width: 0;
+}
 .rail-num {
   font-size: var(--t-hero-size);
   line-height: 1;
@@ -54,7 +66,6 @@ button { font: inherit; color: inherit; }
   color: var(--text);
 }
 .rail-caption { font: var(--t-body); color: var(--text-secondary); white-space: nowrap; }
-.rail-time { margin-left: auto; font: var(--t-body); color: var(--text-secondary); }
 
 .rail-wire { position: relative; padding-top: var(--s-3); min-width: 0; }
 .rail-line {
@@ -205,6 +216,7 @@ button { font: inherit; color: inherit; }
 
 .rail.compact { padding: var(--s-3) var(--s-4); }
 .rail.compact .rail-head { margin-bottom: var(--s-3); }
+.rail.compact .rail-time { font: var(--t-caption); }
 .rail.compact .ticket { min-height: 40px; }
 .rail.compact .ticket-place { -webkit-line-clamp: 1; }
 

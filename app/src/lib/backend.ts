@@ -124,18 +124,54 @@ export async function setClaimStatus(
 // after subscribing can be missed. Same settle window here.
 const REALTIME_SETTLE_MS = 1500;
 
+// And a hard ceiling. `subscribe` reports SUBSCRIBED / CHANNEL_ERROR /
+// TIMED_OUT / CLOSED, but it can also report nothing at all -- which left the
+// promise pending forever and the header stuck on "Connected" while realtime
+// silently never started. A subscription that has not confirmed in this long
+// is not going to.
+const REALTIME_GIVE_UP_MS = 8000;
+
 /** Resolves to an unsubscribe function once the channel is genuinely ready. */
 export function subscribeToClaims(onChange: () => void): Promise<() => void> {
   return new Promise((resolve, reject) => {
-    const channel = client()
-      .channel("claims-changes")
+    const sb = client();
+
+    // Unique per call. Their api.js uses a fixed "claims-changes", which is
+    // fine for one subscription per page -- but two channels sharing a topic
+    // on one client can leave the second one's callback never firing, and in
+    // dev StrictMode's double mount makes that easy to hit. The topic is a
+    // client-side name, so this changes nothing on their side.
+    const topic = `claims-changes-${Math.random().toString(36).slice(2, 10)}`;
+    let settled = false;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      fn();
+    };
+
+    const channel = sb
+      .channel(topic)
       .on("postgres_changes", { event: "*", schema: "public", table: "claims" }, () => onChange())
       .subscribe((status, err) => {
         if (status === "SUBSCRIBED") {
-          setTimeout(() => resolve(() => void client().removeChannel(channel)), REALTIME_SETTLE_MS);
-        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
-          reject(err ?? new Error(`subscribeToClaims: ${status}`));
+          setTimeout(
+            () => finish(() => resolve(() => void sb.removeChannel(channel))),
+            REALTIME_SETTLE_MS,
+          );
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          finish(() => {
+            void sb.removeChannel(channel);
+            reject(err ?? new Error(`subscribeToClaims: ${status}`));
+          });
         }
       });
+
+    setTimeout(() => {
+      finish(() => {
+        void sb.removeChannel(channel);
+        reject(new Error("subscribeToClaims: no status after 8s"));
+      });
+    }, REALTIME_GIVE_UP_MS);
   });
 }

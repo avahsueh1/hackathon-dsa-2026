@@ -1,11 +1,9 @@
 import type { Claim, Zone, ZoneStats } from "../types";
 import type { NeedLevel } from "../components/StatusPill";
-import { ZONES, byUrgency, isCovered, stillNeeded, totals } from "../lib/zones";
+import { ZONES, byUrgency, isCovered, stillNeeded } from "../lib/zones";
 import { fmt } from "../lib/format";
 import ZoneRail from "../components/ZoneRail";
 import ZoneCard from "../components/ZoneCard";
-import Button from "../components/Button";
-import { Hero } from "../components/MobileShell";
 
 interface Props {
   claims: Claim[];
@@ -13,11 +11,9 @@ interface Props {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onClaim: (z: Zone) => void;
-  onOpenMap: () => void;
 }
 
-export default function Tonight({ claims, stats, selectedId, onSelect, onClaim, onOpenMap }: Props) {
-  const t = totals(stats);
+export default function Tonight({ claims, stats, selectedId, onSelect, onClaim }: Props) {
   const ordered = byUrgency(stats, ZONES.zones);
 
   // "Highest need" is a single zone, not a band: the one open zone with the
@@ -30,23 +26,6 @@ export default function Tonight({ claims, stats, selectedId, onSelect, onClaim, 
   return (
     <>
       <ZoneRail zones={ZONES.zones} stats={stats} selectedId={selectedId} onSelect={onSelect} />
-
-      <Hero
-        label="Still unclaimed"
-        value={fmt(t.short)}
-        unit={`of ~${fmt(t.expected)} meals`}
-        right={
-          <Button variant="quiet" size="md" onClick={onOpenMap} style={{ whiteSpace: "nowrap" }}>
-            See the map
-          </Button>
-        }
-      />
-
-      <div className="countrow">
-        <span className="ss-label countrow-l">
-          {t.open} open &middot; {t.covered} covered
-        </span>
-      </div>
 
       <div className="cardlist">
         {ordered.map((z) => (

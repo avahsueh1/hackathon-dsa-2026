@@ -46,14 +46,18 @@ export default function ZoneRail({
           <span className="ss-num rail-time">{clockTime()}</span>
         </div>
       ) : (
-        <div className="rail-head">
-          <span className="ss-label rail-eyebrow">{label}</span>
-          <span className="ss-num rail-num">
-            {covered} of {zones.length}
-          </span>
-          <span className="rail-caption">zones covered</span>
-          <span className="ss-num rail-time">{clockTime()}</span>
-        </div>
+        <>
+          <div className="rail-head">
+            <span className="ss-label rail-eyebrow">{label}</span>
+            <span className="ss-num rail-time">{clockTime()}</span>
+          </div>
+          <div className="rail-summary">
+            <span className="ss-num rail-num">
+              {covered} of {zones.length}
+            </span>
+            <span className="rail-caption">zones covered</span>
+          </div>
+        </>
       )}
 
       <div className="rail-wire" role="list">

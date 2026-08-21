@@ -251,7 +251,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--card-gap);
-  padding: 0 var(--gutter) var(--s-6);
+  padding: var(--s-4) var(--gutter) var(--s-6);
   min-width: 0;
 }
 
