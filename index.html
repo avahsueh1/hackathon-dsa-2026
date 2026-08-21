@@ -5,42 +5,240 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Surplus &rarr; Street — food rescue for Downtown San Diego</title>
 <style>
-/* Spec section 6.2. Single hue, light -> dark, referenced by role never by hex. */
+/* ==================================================================
+   Surplus -> Street design system, from Claude Design.
+   Adopted verbatim: colour, type, space, shape and motion tokens.
+
+   Field mode (dark) is the default -- the app is used at 9pm in a car.
+   Desk mode (light) is for the log and the analysis screens.
+   ================================================================== */
+
+/* Surplus -> Street design system - global entry point.
+   Consumers link this one file. Imports only. */
+/* COLOR
+   Four colors carry meaning: amber = open, mint = covered, blue = the system
+   talking, red = destructive. Everything else is a shade of the background.
+   Hexes and contrast ratios are measured; do not substitute "close enough". */
+
 :root {
-  --step-100:#cde2fb; --step-150:#b7d3f6; --step-200:#9ec5f4; --step-250:#86b6ef;
-  --step-300:#6da7ec; --step-350:#5598e7; --step-400:#3987e5; --step-450:#2a78d6;
-  --step-500:#256abf; --step-550:#1c5cab; --step-600:#184f95; --step-650:#104281;
-  --step-700:#0d366b;
-
-  /* Kernel-density view. Sequential yellow -> deep red: ordered by lightness,
-     so it survives greyscale and red-green colour blindness in a way the
-     classic green-to-red heat ramp does not. */
-  --heat-100:#ffffc4; --heat-200:#fee699; --heat-300:#fec44f; --heat-400:#fe9929;
-  --heat-500:#f0632b; --heat-600:#d7301f; --heat-700:#99000d;
-
-  --surface:#fcfcfb;
-  --surface-raised:#ffffff;
-  --surface-sunken:#f4f4f2;
-  --text-primary:#1a1a19;
-  --text-secondary:#5c5c58;
-  --text-muted:#8a8a84;
-  --border-subtle:#dededa;
-  --border-strong:#bcbcb6;
-
-  /* Basemap. Streets are the negative space between parcels, the way a real
-     street map is drawn. */
-  --map-street:#e3e0d8;
-  --map-parcel:#f7f6f2;
-  --map-parcel-empty:#efede7;
-  --map-label:#8c8880;
-  --map-label-major:#6e6a62;
-  --map-area-label:#a8a49a;
-  --missing-fill:#d8d5cd;
-
-  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* meaning - identical in both modes */
+  --amber-solid: #F0A315;
+  --mint-solid: #2FB37D;
+  --mint-strong: #17845C;   /* use when white text sits on green */
+  --highest: #C0491A;       /* ring on the highest-need open zone */
+  --ink-on-solid: #0E1416;  /* amber & mint solids ALWAYS take dark ink */
 }
 
+/* Field mode - dark, the default. 9pm-1am, in a car, phone at arm's length. */
+:root, [data-mode="field"] {
+  --bg: #0E1416;
+  --surface: #161E21;
+  --surface-raised: #1D272A;
+  --surface-sunken: #0A1012;
+  --border: #2A3639;
+  --border-strong: #3C4B4F;
+  --text: #F0F3F2;            /* 16.6:1 */
+  --text-secondary: #A8B5B7;  /*  8.8:1 */
+  --text-muted: #7B8A8D;      /*  4.7:1 */
+  --amber-ink: #FFC24D;       /* 10.5:1 */
+  --amber-tint: #3A2A0A;
+  --mint-ink: #5FD3A2;        /*  9.1:1 */
+  --mint-tint: #0F2A21;
+  --blue: #5FA3F0;            /*  7.1:1 */
+  --danger: #E5534B;          /*  4.6:1 */
+}
+
+/* Desk mode - light. Admin, tables, the SB 1383 log. Cool paper, not cream. */
+[data-mode="desk"] {
+  --bg: #F3F5F4;
+  --surface: #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-sunken: #E7EBE9;
+  --border: #D3DAD8;
+  --border-strong: #B4BEBB;
+  --text: #0E1416;            /* 17.0:1 */
+  --text-secondary: #4C5A5C;  /*  6.6:1 */
+  --text-muted: #5E6B6D;      /*  5.5:1 */
+  --amber-ink: #8A5A00;       /*  5.9:1 */
+  --amber-tint: #FDECC8;
+  --mint-ink: #12694A;        /*  6.7:1 */
+  --mint-tint: #D8F0E3;
+  --blue: #256ABF;            /*  5.4:1 */
+  --danger: #B3261E;          /*  6.5:1 */
+}
+
+/* semantic aliases - use these in components */
+:root, [data-mode="field"], [data-mode="desk"] {
+  --surface-card: var(--surface);
+  --surface-sheet: var(--surface);
+  --surface-table-header: var(--surface-sunken);
+  --text-body: var(--text);
+  --text-label: var(--text-secondary);
+  --text-helper: var(--text-muted);
+  --hairline: var(--border);
+  --focus-ring: var(--blue);
+  --status-open-fill: var(--amber-solid);
+  --status-open-ink: var(--amber-ink);
+  --status-open-tint: var(--amber-tint);
+  --status-covered-fill: var(--mint-solid);
+  --status-covered-ink: var(--mint-ink);
+  --status-covered-tint: var(--mint-tint);
+}
+
+/* TYPE
+   One family, five sizes, and numbers in a monospace so they line up.
+   System stack on purpose: zero network requests, works offline at the venue.
+   NEVER load a font from a CDN. There are no @font-face rules in this system -
+   that is a deliberate decision, not an omission. */
+
+:root {
+  --font-ui: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Source doc lists "Cascadia Mono" and "Roboto Mono" in this stack. Both are
+     webfont-flagged with no file to bundle, and the doc forbids loading fonts at
+     all (§5), so they are omitted: ui-monospace already resolves to the right
+     system mono on Windows and Android. */
+  --font-num: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* shorthand tokens - use as `font: var(--t-title)` */
+  --t-hero: 700 44px/46px var(--font-ui);
+  --t-title: 650 26px/32px var(--font-ui);
+  --t-body-lg: 500 18px/26px var(--font-ui);
+  --t-body: 400 16px/24px var(--font-ui);
+  --t-label: 600 13px/16px var(--font-ui);
+  --t-caption: 400 13px/18px var(--font-ui);
+
+  /* tracking that travels with the size */
+  --tracking-hero: -0.02em;
+  --tracking-label: 0.06em;
+
+  /* individual values, when the shorthand will not do */
+  --t-hero-size: 44px;   --t-hero-line: 46px;   --t-hero-weight: 700;
+  --t-title-size: 26px;  --t-title-line: 32px;  --t-title-weight: 650;
+  --t-body-lg-size: 18px;--t-body-lg-line: 26px;--t-body-lg-weight: 500;
+  --t-body-size: 16px;   --t-body-line: 24px;   --t-body-weight: 400;
+  --t-label-size: 13px;  --t-label-line: 16px;  --t-label-weight: 600;
+  --t-caption-size: 13px;--t-caption-line: 18px;--t-caption-weight: 400;
+}
+
+/* SPACE - everything is a multiple of 4.
+   Card padding --s-4 on mobile, --s-5 on desktop. Gap between cards --s-3.
+   Screen gutter --s-4. Section break --s-6. */
+
+:root {
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  --gutter: var(--s-4);
+  --card-pad: var(--s-4);
+  --card-pad-desktop: var(--s-5);
+  --card-gap: var(--s-3);
+  --section-break: var(--s-6);
+
+  /* targets: nothing interactive below 44px, primary actions 56px */
+  --tap-min: 44px;
+  --tap-primary: 56px;
+  --tap-stepper: 48px;
+}
+
+/* SHAPE + DEPTH
+   Corners are soft but not round. Depth is done with borders, not shadows.
+   Only two shadows exist in the entire system. No shadow on cards, ever. */
+
+:root {
+  --r-sm: 8px;    /* inputs, pills, small chips */
+  --r-md: 12px;   /* cards, buttons */
+  --r-lg: 18px;   /* sheets, modals */
+  --r-full: 999px;/* status pills, avatars */
+
+  --hairline-width: 1px;
+  --outline-width: 1.5px;   /* open zone border */
+  --outline-width-strong: 2px; /* covered / high-need zone border, focus ring */
+
+  --shadow-sheet: 0 -8px 24px rgba(0,0,0,.28);
+  --shadow-toast: 0 4px 16px rgba(0,0,0,.24);
+}
+
+/* MOTION - three animations exist. Everything else is instant. */
+
+:root {
+  --ease: cubic-bezier(.2,.8,.2,1); /* @kind other */
+  --dur-flip: 280ms; /* @kind other */      /* zone amber -> mint, the money shot */
+  --dur-sheet: 220ms; /* @kind other */     /* bottom sheet slide + snap */
+  --dur-toast-in: 160ms; /* @kind other */
+  --dur-toast-out: 240ms; /* @kind other */
+  --press-scale: 0.98; /* @kind other */
+}
+
+@keyframes ss-ring-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(47,179,125,.55); }
+  100% { box-shadow: 0 0 0 14px rgba(47,179,125,0); }
+}
+@keyframes ss-toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes ss-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+
+/* ------------------------------------------------------------------
+   Bridge: this app was built against an earlier set of token names.
+   Rather than rewrite ~1,000 CSS declarations, the old names now point
+   at the new system. One block changes the entire look, and every rule
+   written before today keeps working.
+   ------------------------------------------------------------------ */
+:root, [data-mode] {
+  --surface-raised: var(--surface);
+  --text-primary: var(--text);
+  --border-subtle: var(--border);
+  --sans: var(--font-ui);
+  --mono: var(--font-num);
+
+  /* --step-500/600 were only ever UI accents; the choropleth uses the
+     150-700 steps, which stay a sequential ramp. */
+  --step-500: var(--blue);
+  --step-600: var(--blue);
+}
+
+/* The page background is --bg in the new system, --surface in the old. */
+html, body { background: var(--bg); }
+
+/* Choropleth ramp. Kept separate from the semantic palette because a
+   sequential scale has to stay sequential, and re-stepped for the dark
+   field surface the same way the old dark mode was. */
+:root, [data-mode="field"] {
+  --step-100:#0f2437; --step-150:#17324f; --step-200:#1a3b60;
+  --step-250:#1d4472; --step-300:#215089; --step-350:#255a96;
+  --step-400:#2a67ab; --step-450:#2f74bd; --step-500-map:#3b82cf;
+  --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
+  --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
+  --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
+  --map-street:#0a1012; --map-parcel:#182226; --map-parcel-empty:#131b1e;
+  --map-label:#6f7d80; --map-label-major:#94a2a5; --map-area-label:#5c686b;
+  --missing-fill:#232d30;
+}
+[data-mode="desk"] {
+  --step-100:#cde2fb; --step-150:#b7d3f6; --step-200:#9ec5f4;
+  --step-250:#86b6ef; --step-300:#6da7ec; --step-350:#5598e7;
+  --step-400:#3987e5; --step-450:#2a78d6; --step-550:#1c5cab;
+  --step-650:#104281; --step-700:#0d366b;
+  --heat-100:#ffffc4; --heat-200:#fee699; --heat-300:#fec44f;
+  --heat-400:#fe9929; --heat-500:#f0632b; --heat-600:#d7301f; --heat-700:#99000d;
+  --map-street:#e3e0d8; --map-parcel:#f7f6f2; --map-parcel-empty:#efede7;
+  --map-label:#8c8880; --map-label-major:#6e6a62; --map-area-label:#a8a49a;
+  --missing-fill:#d8d5cd;
+}
 * { box-sizing: border-box; }
 
 /* The browser's own [hidden] rule is display:none, but any author rule with a
@@ -53,9 +251,10 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: var(--surface);
-  color: var(--text-primary);
-  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  font: var(--t-body);
+  -webkit-font-smoothing: antialiased;
   overflow-x: hidden;              /* spec 6.7 -- body must never scroll sideways */
 }
 
@@ -670,68 +869,6 @@ table.plain tr.best td { background: #eef4fb; font-weight: 600; }
 .tvwrap table.plain th .arrow { color: var(--step-500); }
 td.obs { font-size: 10.5px; color: var(--text-secondary); }
 
-/* ---------------------------------------------------------- dark mode
-   Spec 6.2 asks for a *selected* dark mode, re-stepped against the dark
-   surface rather than auto-inverted. The blue ramp keeps its hue but runs
-   the other way in lightness: on a dark ground a near-black block reads as
-   empty, so low values are deep navy and high values are bright.
-   Three states: no attribute follows the system, [data-theme] overrides. */
-:root[data-theme="dark"],
-:root:not([data-theme="light"]) .dark-probe { --probe: 1; }
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --surface:#1a1a19; --surface-raised:#232321; --surface-sunken:#141413;
-    --text-primary:#f2f0ec; --text-secondary:#a8a49c; --text-muted:#7d7a72;
-    --border-subtle:#33322f; --border-strong:#4c4a45;
-    --step-150:#17324f; --step-250:#1d4472; --step-350:#255a96;
-    --step-450:#2f74bd; --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
-    --step-500:#5598e7; --step-600:#84b8ee;
-    --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
-    --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
-    --map-street:#1c1b19; --map-parcel:#2c2b28; --map-parcel-empty:#262521;
-    --map-label:#8a867d; --map-label-major:#a8a49c; --map-area-label:#6d6a63;
-    --missing-fill:#2f2e2a;
-  }
-}
-:root[data-theme="dark"] {
-  --surface:#1a1a19; --surface-raised:#232321; --surface-sunken:#141413;
-  --text-primary:#f2f0ec; --text-secondary:#a8a49c; --text-muted:#7d7a72;
-  --border-subtle:#33322f; --border-strong:#4c4a45;
-  --step-150:#17324f; --step-250:#1d4472; --step-350:#255a96;
-  --step-450:#2f74bd; --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
-  --step-500:#5598e7; --step-600:#84b8ee;
-  --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
-  --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
-  --map-street:#1c1b19; --map-parcel:#2c2b28; --map-parcel-empty:#262521;
-  --map-label:#8a867d; --map-label-major:#a8a49c; --map-area-label:#6d6a63;
-  --missing-fill:#2f2e2a;
-}
-
-/* Pieces that carry their own colour rather than a token. */
-:root[data-theme="dark"] .maplegend,
-:root:not([data-theme="light"]) .maplegend { }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .maplegend { background: rgba(35,35,33,0.94); }
-  :root:not([data-theme="light"]) .curtain { background: rgba(26,26,25,0.86); }
-  :root:not([data-theme="light"]) .badge.observed { background:#1f2c1a; border-color:#3a5230; color:#b9d6ab; }
-  :root:not([data-theme="light"]) .badge.missing  { background:#2e211a; border-color:#5a4132; color:#e0b49a; }
-  :root:not([data-theme="light"]) .big.warn { background:#2e211a; border-color:#5a4132; }
-  :root:not([data-theme="light"]) .big.warn .bv { color:#e8a184; }
-  :root:not([data-theme="light"]) table.plain tr.best td { background:#1b2735; }
-  :root:not([data-theme="light"]) .seg button[aria-pressed="true"],
-  :root:not([data-theme="light"]) button.ghost[aria-pressed="true"] { color:#0d1b2a; }
-}
-:root[data-theme="dark"] .maplegend { background: rgba(35,35,33,0.94); }
-:root[data-theme="dark"] .curtain { background: rgba(26,26,25,0.86); }
-:root[data-theme="dark"] .badge.observed { background:#1f2c1a; border-color:#3a5230; color:#b9d6ab; }
-:root[data-theme="dark"] .badge.missing  { background:#2e211a; border-color:#5a4132; color:#e0b49a; }
-:root[data-theme="dark"] .big.warn { background:#2e211a; border-color:#5a4132; }
-:root[data-theme="dark"] .big.warn .bv { color:#e8a184; }
-:root[data-theme="dark"] table.plain tr.best td { background:#1b2735; }
-:root[data-theme="dark"] .seg button[aria-pressed="true"],
-:root[data-theme="dark"] button.ghost[aria-pressed="true"] { color:#0d1b2a; }
-
 button.theme {
   font-family: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer;
   border: 1px solid var(--border-strong); border-radius: 6px;
@@ -1110,6 +1247,131 @@ fieldset.fgroup legend {
   .fieldrow { grid-template-columns: 1fr; }
 }
 
+/* ==================================================== mobile app shell ==== */
+/* Below 860px the page stops being a page and becomes an app: fixed header,
+   scrolling body, bottom tab bar, and a claim flow that arrives as a sheet
+   rather than a centred dialog. Above that width it is the web console and
+   nothing here applies.                                                      */
+
+.tabbar { display: none; }
+.appheader { display: none; }
+
+@media (max-width: 860px) {
+
+  html, body {
+    height: 100%;
+    overscroll-behavior-y: none;          /* no rubber-band under the tab bar */
+  }
+  body {
+    /* the app owns the viewport; only the content column scrolls */
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+  }
+
+  /* --- fixed app header, replaces the page masthead --- */
+  header { display: none; }
+  nav.tabs { display: none; }
+
+  .appheader {
+    display: flex; align-items: center; gap: 10px;
+    flex: none;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) var(--gutter) 10px;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+  .appheader .apptitle {
+    font: var(--t-body-lg); font-weight: 650; letter-spacing: -0.01em;
+    flex: 1; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .appheader .appsub {
+    font: var(--t-caption); color: var(--text-secondary);
+    display: block; font-weight: 400; letter-spacing: 0;
+  }
+  .appheader .headerbtn {
+    flex: none; min-width: var(--tap-min); height: var(--tap-min);
+    display: grid; place-items: center;
+    background: none; border: 1px solid var(--border); border-radius: var(--r-sm);
+    color: var(--text-secondary); font: var(--t-label); padding: 0 10px;
+  }
+
+  /* --- the scrolling content column --- */
+  .wrap {
+    flex: 1; min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: var(--gutter) var(--gutter) var(--s-6);
+    max-width: none;
+  }
+
+  /* --- bottom tab bar --- */
+  .tabbar {
+    display: flex;
+    flex: none;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .tabbar button {
+    flex: 1;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 3px;
+    min-height: var(--tap-primary);
+    padding: 7px 2px;
+    background: none; border: none;
+    color: var(--text-muted);
+    font: var(--t-label); font-size: 11px; letter-spacing: 0;
+    text-transform: none;
+  }
+  .tabbar button .ti { width: 22px; height: 22px; display: block; }
+  .tabbar button .ti svg { width: 100%; height: 100%; display: block; }
+  .tabbar button[aria-selected="true"] { color: var(--blue); }
+  .tabbar button:active { transform: scale(var(--press-scale)); }
+
+  /* --- claim flow as a bottom sheet, not a centred dialog --- */
+  .modal { align-items: flex-end; padding: 0; }
+  .modalbox {
+    max-width: none; width: 100%;
+    border-radius: var(--r-lg) var(--r-lg) 0 0;
+    border-left: none; border-right: none; border-bottom: none;
+    padding: var(--s-4) var(--gutter) calc(env(safe-area-inset-bottom, 0px) + var(--s-5));
+    max-height: 92dvh; overflow-y: auto;
+    box-shadow: var(--shadow-sheet);
+    animation: ss-sheet-up var(--dur-sheet) var(--ease);
+  }
+  /* the grab handle every bottom sheet has */
+  .modalbox::before {
+    content: ""; display: block;
+    width: 36px; height: 4px; border-radius: var(--r-full);
+    background: var(--border-strong);
+    margin: 0 auto var(--s-4);
+  }
+  .modalrow { position: sticky; bottom: 0; background: var(--surface); padding-top: var(--s-3); }
+  .modalrow .btn { flex: 1; min-height: var(--tap-primary); }
+
+  /* --- sizing up for one-handed use at night --- */
+  .btn { min-height: var(--tap-min); }
+  .btn.primary { min-height: var(--tap-primary); font-size: 15px; }
+  .finput, .field input, .field select { min-height: var(--tap-stepper); font-size: 16px; }
+  .qbtn, .chip, .day { min-height: var(--tap-min); padding: 0 16px; }
+
+  /* the zone list is the screen on mobile; the map goes above it */
+  .zonelayout { display: block; }
+  .zoneside { margin-bottom: var(--s-4); }
+  .zcard { padding: var(--s-4); }
+  .zactions .btn { width: 100%; min-height: var(--tap-primary); }
+
+  .tonighthead { display: block; }
+  .tonightnums { gap: var(--s-5); margin-top: var(--s-3); }
+}
+
+/* Very small phones: the tab labels are the first thing to go. */
+@media (max-width: 360px) {
+  .tabbar button { font-size: 0; gap: 0; }
+  .tabbar button .ti { width: 24px; height: 24px; }
+}
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -1136,6 +1398,11 @@ fieldset.fgroup legend {
 </style>
 </head>
 <body>
+<div class="appheader">
+  <div class="apptitle">Surplus &rarr; Street<span class="appsub" id="app-sub"></span></div>
+  <button class="headerbtn" id="app-mode">Desk</button>
+</div>
+
 <div class="wrap">
 
 <header>
@@ -1154,7 +1421,7 @@ fieldset.fgroup legend {
   <button role="tab" id="tb-plan" aria-selected="false" aria-controls="tab-plan">Shelter plan</button>
   <button role="tab" id="tb-signup" aria-selected="false" aria-controls="tab-signup">Sign up</button>
   <span class="whochip" id="who-chip" hidden></span>
-  <button class="theme" id="theme-btn" title="Switch between light and dark">Theme: auto</button>
+  <button class="theme" id="theme-btn" data-mode="field" title="Field is dark for night use; Desk is light for reading and printing">Field (dark)</button>
 </nav>
 
 <section class="tab" id="tab-tonight" role="tabpanel" aria-labelledby="tb-tonight">
@@ -1605,6 +1872,14 @@ fieldset.fgroup legend {
 <p class="caption" id="sources"></p>
 
 </div>
+
+<nav class="tabbar" id="tabbar" role="tablist">
+  <button role="tab" data-tab="tonight" aria-selected="true"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a7 7 0 0 0-7 7c0 3 2 5 2 7h10c0-2 2-4 2-7a7 7 0 0 0-7-7z"/><path d="M9 20h6"/></svg></span>Tonight</button>
+  <button role="tab" data-tab="drops" aria-selected="false"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v4H4z"/><path d="M4 11h16"/><path d="M4 16h16"/><path d="M4 21h10"/></svg></span>Log</button>
+  <button role="tab" data-tab="explore" aria-selected="false"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6l6-3 6 3 6-3v15l-6 3-6-3-6 3z"/><path d="M9 3v15M15 6v15"/></svg></span>Situation</button>
+  <button role="tab" data-tab="plan" aria-selected="false"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V9M10 20V4M16 20v-8M22 20H2"/></svg></span>Plan</button>
+  <button role="tab" data-tab="signup" aria-selected="false"><span class="ti"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg></span>Account</button>
+</nav>
 
 <div id="tip" role="tooltip"></div>
 
@@ -3205,7 +3480,11 @@ render(startIdx);
 // it. Colours live in CSS custom properties, but the SVG reads them once at
 // startup, so a theme change has to re-read the tokens and repaint.
 
-var THEMES = ["auto", "light", "dark"];
+// The design system ships two modes, and they are not light/dark preferences --
+// they are use cases. Field is dark because the app is used at 9pm in a car;
+// desk is light because the SB 1383 log gets read and printed at a desk.
+var THEMES = ["field", "desk"];
+var THEME_LABEL = { field: "Field (dark)", desk: "Desk (light)" };
 var themeBtn = document.getElementById("theme-btn");
 
 function readTokens() {
@@ -3220,13 +3499,10 @@ function readTokens() {
 }
 
 function applyTheme(name) {
-  if (name === "auto") {
-    document.documentElement.removeAttribute("data-theme");
-  } else {
-    document.documentElement.setAttribute("data-theme", name);
-  }
+  document.documentElement.setAttribute("data-mode", name);
   try { localStorage.setItem("heatmap-theme", name); } catch (e) {}
-  themeBtn.textContent = "Theme: " + name;
+  themeBtn.textContent = THEME_LABEL[name] || name;
+  themeBtn.dataset.mode = name;
   readTokens();
   paintLegend();
   paintMapLegend();
@@ -3242,10 +3518,11 @@ function applyTheme(name) {
   });
 }
 
-var savedTheme = "auto";
-try { savedTheme = localStorage.getItem("heatmap-theme") || "auto"; } catch (e) {}
+var savedTheme = "field";
+try { savedTheme = localStorage.getItem("heatmap-theme") || "field"; } catch (e) {}
+if (THEMES.indexOf(savedTheme) < 0) savedTheme = "field";
 themeBtn.addEventListener("click", function () {
-  var i = THEMES.indexOf(themeBtn.textContent.replace("Theme: ", ""));
+  var i = THEMES.indexOf(themeBtn.dataset.mode || "field");
   applyTheme(THEMES[(i + 1) % THEMES.length]);
 });
 
@@ -3265,6 +3542,7 @@ function showTab(name) {
     btn.setAttribute("aria-selected", String(on));
     pane.hidden = !on;
   });
+  if (typeof paintShell === "function") paintShell(name);
   // The map only measures correctly once its pane is visible.
   if (name === "explore") applyTransform();
   if (location.hash.slice(1) !== name) history.replaceState(null, "", "#" + name);
@@ -3274,6 +3552,39 @@ TABS.forEach(function (t) {
   var btn = document.getElementById("tb-" + t);
   if (btn) btn.addEventListener("click", function () { showTab(t); });
 });
+
+// The bottom bar is the same navigation, in the shape a phone expects. It
+// drives showTab rather than duplicating it, so the two can never disagree.
+var SHELL_SUB = {
+  tonight: "Zones needing food",
+  drops: "Your donation log",
+  explore: "The data behind it",
+  plan: "Where shelters should go",
+  signup: "Your restaurant"
+};
+Array.prototype.forEach.call(
+  document.querySelectorAll("#tabbar button[data-tab]"), function (b) {
+    b.addEventListener("click", function () { showTab(b.dataset.tab); });
+  });
+
+function paintShell(name) {
+  Array.prototype.forEach.call(
+    document.querySelectorAll("#tabbar button[data-tab]"), function (b) {
+      b.setAttribute("aria-selected", String(b.dataset.tab === name));
+    });
+  var sub = document.getElementById("app-sub");
+  if (sub) sub.textContent = SHELL_SUB[name] || "";
+}
+
+var modeBtn = document.getElementById("app-mode");
+if (modeBtn) {
+  modeBtn.addEventListener("click", function () {
+    var next = document.documentElement.getAttribute("data-mode") === "desk"
+      ? "field" : "desk";
+    applyTheme(next);
+    modeBtn.textContent = next === "desk" ? "Field" : "Desk";
+  });
+}
 
 function money(usd, dp) {
   if (usd === null || usd === undefined) return "—";
@@ -4003,7 +4314,12 @@ function renderZoneMap() {
     z.block_ids.forEach(function (b) { byBlock[b] = z; });
   });
 
-  var BANDC = { high: "#c2410c", medium: "#ea9a3e", low: "#e8d9c0" };
+  // amber = open, mint = covered (design system, "four colours carry meaning").
+  // --highest is reserved for the highest-need open zone.
+  var BANDC = { high: tok("--highest") || "#C0491A",
+                medium: tok("--amber-solid") || "#F0A315",
+                low: tok("--amber-tint") || "#3A2A0A" };
+  var COVERED = tok("--mint-solid") || "#2FB37D";
   var parts = ['<rect x="0" y="0" width="' + VB_W + '" height="' + VB_H +
                '" fill="' + tok("--map-street") + '"/>'];
 
@@ -4012,7 +4328,7 @@ function renderZoneMap() {
     var fill = tok("--map-parcel");
     var op = "1";
     if (z) {
-      fill = coverage(z) >= 0.999 ? "#4f7a41" : BANDC[z.band];
+      fill = coverage(z) >= 0.999 ? COVERED : BANDC[z.band];
       op = coverage(z) >= 0.999 ? "0.75" : "0.85";
     }
     parts.push('<path d="' + ringsToPath(b.rings) + '" fill="' + fill +
@@ -4034,13 +4350,13 @@ function renderZoneMap() {
   el.innerHTML = parts.join("");
 
   document.getElementById("zone-key").innerHTML =
-    '<span class="kk"><i style="background:#c2410c"></i>High need</span>' +
-    '<span class="kk"><i style="background:#ea9a3e"></i>Medium</span>' +
-    '<span class="kk"><i style="background:#e8d9c0"></i>Lower</span>' +
-    '<span class="kk"><i style="background:#4f7a41"></i>Covered tonight</span>';
+    '<span class="kk"><i style="background:' + BANDC.high + '"></i>High need</span>' +
+    '<span class="kk"><i style="background:' + BANDC.medium + '"></i>Medium</span>' +
+    '<span class="kk"><i style="background:' + BANDC.low + '"></i>Lower</span>' +
+    '<span class="kk"><i style="background:' + COVERED + '"></i>Covered tonight</span>';
   document.getElementById("zone-map-cap").textContent =
-    "Ten delivery zones. Colour is the zone's need band, not any individual " +
-    "block — every block in a zone is shaded the same.";
+    ZONES.zones.length + " delivery zones. Colour is the zone's need band, not " +
+    "any individual block — every block in a zone is shaded the same.";
 }
 
 // --------------------------------------------------------------- claim flow

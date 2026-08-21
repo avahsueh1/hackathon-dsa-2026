@@ -18,6 +18,37 @@ and every other restaurant sees it is covered.
 
 Built for Building for Good 2026, Downtown Homelessness track.
 
+## Design
+
+The visual system comes from Claude Design and is adopted verbatim — colour,
+type, space, shape and motion tokens. Two modes, and they are use cases rather
+than preferences:
+
+- **Field (dark), the default.** The app is used at 9pm, in a car, phone at
+  arm's length. Below 860px it becomes a real app shell: fixed header,
+  scrolling content, bottom tab bar, and the claim flow arrives as a bottom
+  sheet with a 56px primary button.
+- **Desk (light).** The SB 1383 log and the analysis screens, which get read
+  and printed at a desk.
+
+Four colours carry meaning and nothing else does: **amber = open**,
+**mint = covered**, blue = the system talking, red = destructive. The zone map
+uses exactly those, so a zone flipping from amber to mint is the same event on
+the map as on the card.
+
+Two deliberate departures from the design files:
+
+1. **Vanilla, not React.** The design ships as a React component library. The
+   deliverable has to be one self-contained file that renders offline (spec §0),
+   and the app logic is already written and tested — so the tokens and the
+   component styling were ported into CSS rather than the app rewritten. The
+   old token names are bridged to the new ones in one block, so every rule
+   written before the redesign still works.
+2. **No Leaflet.** The design includes a `ZoneLeafletMap` that pulls
+   OpenStreetMap tiles. That breaks the offline rule and would leave a grey
+   rectangle if the venue wifi drops mid-demo. The design also includes a
+   `ZoneBlockMap`, which is what this uses.
+
 ## The need model
 
 ```
