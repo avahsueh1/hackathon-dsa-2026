@@ -1,11 +1,19 @@
 # Downtown SD Homelessness — Block-Level Heat Map
 
-Block-level heat map of estimated unsheltered persons across **382 downtown San
-Diego blocks**, with a time slider spanning **108 months (2017-01 → 2025-12)**.
-(The spec says 102; the delivered data carries 108 — see "Three places the
-data disagreed with the spec".)
+A dashboard that turns 108 months of downtown San Diego street counts into a
+concrete answer to one question: **where should the next shelters go?**
+
+Three tabs over one dataset:
+
+| Tab | What it does |
+|---|---|
+| **Overview** | The story in four measured findings — how concentrated need is, how full the shelters are, how far the nearest hospital is, and how much site choice matters. |
+| **Explore the map** | Block-level heat map of 382 blocks across 108 months, with a street basemap, trolley/shelter/health overlays and a box-select tool. |
+| **Action plan** | A maximal-coverage siting model: 7 sites, 617 beds, $18.9M/yr, closing 94% of the gap — and the evidence that it beats the obvious alternative. |
 
 Built for the San Diego DSA hackathon, "Downtown Homelessness" challenge.
+(The spec says 102 months; the delivered data carries 108 — see "Three places
+the data disagreed with the spec".)
 
 ## The hard constraint
 
@@ -71,6 +79,7 @@ Per spec §8, rooted at the repo root:
 │   ├── build_transit_data.py  # MTS trolley lines/stations, clipped to downtown
 │   ├── build_shelter_data.py  # HIC beds + FY25 funding + siting gap model
 │   ├── build_health_data.py   # HCAI licensed health facilities near downtown
+│   ├── build_siting_model.py  # where the next shelters should go
 │   └── build_page.py          # inlines data/out/*.json into index.html
 ├── docs/
 │   └── HEATMAP_SPEC.md       # authoritative implementation spec
@@ -122,10 +131,13 @@ python3 scripts/build_transit_data.py
 python3 scripts/build_shelter_data.py
 python3 scripts/build_health_data.py
 
-# 4. Inline everything into index.html.
+# 4. The siting model. Needs shelters.json; reads transit/health if present.
+python3 scripts/build_siting_model.py
+
+# 5. Inline everything into index.html.
 python3 scripts/build_page.py
 
-# 5. Open the result. No server needed — that is the point.
+# 6. Open the result. No server needed — that is the point.
 open index.html
 ```
 
@@ -168,6 +180,60 @@ every visible label — "People without a bed" rather than "unmet", "people"
 rather than "persons", "Based on 12 physical counts" rather than "share
 confidence" — and the dense tables are collapsed by default so the first screen
 is a story, not a spreadsheet.
+
+## The siting model — how the recommendation is made
+
+`scripts/build_siting_model.py` solves the **Maximal Covering Location Problem**
+(Church & ReVelle, 1974): pick K of the 382 blocks so that the most people who
+*currently have no free bed nearby* end up within walking distance of one.
+
+Solved greedily. Coverage is submodular, so greedy is provably within
+(1 − 1/e) ≈ 63% of optimal — which is why this is defensible without an ILP
+solver, and an ILP solver would break the zero-dependency rule anyway.
+
+Three choices that carry the result:
+
+1. **Only free beds count as supply.** A 99%-full shelter next door serves
+   nobody new, so it does not make a block look covered. This is why the answer
+   is not just "next to the existing shelters".
+2. **400 m, not 800 m.** Downtown is ~3.5 km across, so at 800 m every candidate
+   site looks identical and the model collapses onto the naive answer. Measured
+   lift over naive siting by radius:
+
+   | walk | 250 m | 300 m | 400 m | 500 m | 600 m | 800 m |
+   |---|---|---|---|---|---|---|
+   | model beats naive by | +33% | +69% | **+38%** | +21% | +13% | +6% |
+
+   400 m is the standard 5-minute-walk planning threshold and it discriminates.
+   The full sweep ships in `plan.json` and on the Action plan tab, so the choice
+   can be argued with rather than taken on trust.
+3. **Cost is the city's own number**, $30,700 per bed-year, from the FY25 IBA
+   report's 1,000-bed Kettner & Vine proposal at $30.7M/year.
+
+**Result:** 847 people counted in Jan 2025, **658 with no free bed within a
+5-minute walk**. Seven sites totalling 617 beds reach 616 of them — 94% — for
+$18.9M a year. Naive siting reaches 445. The model finds **170 more people for
+the same build**.
+
+Two of the seven sites also come top when demand is averaged over the last three
+counts instead of one, so the top of the list is the firm part and the tail is
+indicative. That is stated on the page rather than buried here.
+
+**What it cannot tell you:** demand is where people were counted *sleeping*, not
+where they would accept a bed. Distances are straight-line — the bay and the
+I-5 are not modelled as barriers. Land availability, zoning and community
+process are not modelled at all. These are candidate areas for a siting study,
+not sites.
+
+## Working on this from a second machine
+
+`index.html` is one big file, so **do not edit it to add a feature.** Drop files
+into `src/panels/` instead and `build_page.py` inlines them automatically —
+`*.html` into the page, `*.js` into the app script with all data in scope,
+`*.css` into the stylesheet. Two new files merge cleanly; simultaneous edits to
+`index.html` do not.
+
+See [`docs/ADDING_A_PANEL.md`](docs/ADDING_A_PANEL.md).
 
 ## Outside data
 

@@ -37,7 +37,8 @@ REQUIRED = (("geometry", "geometry.json"),
 # hiding those layers if either is absent, so the heat map alone still builds.
 OPTIONAL = (("transit", "transit.json"),
             ("shelters", "shelters.json"),
-            ("health", "health.json"))
+            ("health", "health.json"),
+            ("plan", "plan.json"))
 
 payload = {}
 for key, name in REQUIRED:
@@ -76,6 +77,40 @@ if n != 1:
 
 with open(PAGE, "w", encoding="utf-8") as fh:
     fh.write(html)
+
+# ---------------------------------------------------------------- panels
+# Optional drop-in panels. Anything in src/panels/ is inlined in filename
+# order, so a second machine can add a tab by committing two new files
+# instead of editing index.html and fighting a merge. See
+# docs/ADDING_A_PANEL.md.
+PANELS = os.path.join(ROOT, "src", "panels")
+if os.path.isdir(PANELS):
+    names = sorted(os.listdir(PANELS))
+    html_parts, js_parts, css_parts = [], [], []
+    for name in names:
+        path = os.path.join(PANELS, name)
+        if not os.path.isfile(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            body = fh.read()
+        if name.endswith(".html"):
+            html_parts.append(body)
+        elif name.endswith(".js"):
+            js_parts.append(body)
+        elif name.endswith(".css"):
+            css_parts.append(body)
+    if html_parts or js_parts or css_parts:
+        print("  panels: %d html, %d js, %d css from src/panels/"
+              % (len(html_parts), len(js_parts), len(css_parts)))
+    for marker, parts in (("<!--__PANELS__-->", html_parts),
+                          ("/*__PANEL_JS__*/", js_parts),
+                          ("/*__PANEL_CSS__*/", css_parts)):
+        if parts and marker not in html:
+            sys.exit("index.html is missing the %s marker" % marker)
+        if parts:
+            html = html.replace(marker, "\n".join(parts) + "\n" + marker, 1)
+    with open(PAGE, "w", encoding="utf-8") as fh:
+        fh.write(html)
 
 size = os.path.getsize(PAGE)
 print("inlined %d blocks x %d months into index.html"
