@@ -7,7 +7,7 @@ Three tabs over one dataset:
 
 | Tab | What it does |
 |---|---|
-| **Overview** | The story in four measured findings — how concentrated need is, how full the shelters are, how far the nearest hospital is, and how much site choice matters. |
+| **Overview** | The argument, mostly in pictures: a three-step flow (data → pattern → plan) and four findings, each a small inline chart with a single line of text under it. |
 | **Explore the map** | Block-level heat map of 382 blocks across 108 months, with a street basemap, trolley/shelter/health overlays and a box-select tool. |
 | **Action plan** | A maximal-coverage siting model: 7 sites, 617 beds, $18.9M/yr, closing 94% of the gap — and the evidence that it beats the obvious alternative. |
 
