@@ -900,3 +900,8 @@ button { font: inherit; color: inherit; }
 }
 /* Nested inside a route card, the stop is a row not a card of its own. */
 .routestops .stopcard { border-color: var(--border); background: var(--surface-sunken); }
+
+/* Back + confirm inside the pickup card. The confirm is the wider of the two:
+   going back is a correction, adding the stop is the point. */
+.pickupcard .stopactions .btn:first-child { flex: 0 0 auto; }
+.pickupcard .stopactions .btn:last-child { flex: 1; }

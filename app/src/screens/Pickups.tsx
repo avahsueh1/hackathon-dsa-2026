@@ -46,6 +46,10 @@ export default function Pickups({
   const routes = useRoutes();
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
+  // Two steps on purpose. Tapping a ping is asking "what is this?", not
+  // "commit me to a destination" -- leading with four zone options answered a
+  // question nobody had asked yet.
+  const [step, setStep] = useState<"detail" | "destination">("detail");
   const [zoneId, setZoneId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -83,10 +87,11 @@ export default function Pickups({
     if (selected && !open.some((p) => p.id === selected)) setSelected(null);
   }, [open, selected]);
 
-  // Default to the suggestion, and never carry the previous pickup's choice
-  // over to the next one.
+  // Default to the suggestion, and never carry the previous pickup's choice --
+  // or the previous pickup's step -- over to the next one.
   useEffect(() => {
     setZoneId(suggestions[0]?.zone.id ?? null);
+    setStep("detail");
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
@@ -175,47 +180,61 @@ export default function Pickups({
             <span className="zcard-meta open">{chosen.pickup_note}</span>
           )}
 
-          <span className="ss-label pick-label dropq">Where do you want to drop it off?</span>
+          {step === "detail" ? (
+            <Button fullWidth onClick={() => setStep("destination")}>
+              Add to route
+            </Button>
+          ) : (
+            <>
+              <span className="ss-label pick-label dropq">
+                Where do you want to drop it off?
+              </span>
 
-          <div className="dropchoices">
-            {suggestions.map((s, i) => {
-              const on = zoneId === s.zone.id;
-              return (
-                <button
-                  key={s.zone.id}
-                  type="button"
-                  className={`runzone${on ? " on" : ""}`}
-                  onClick={() => setZoneId(s.zone.id)}
+              <div className="dropchoices">
+                {suggestions.map((s, i) => {
+                  const on = zoneId === s.zone.id;
+                  return (
+                    <button
+                      key={s.zone.id}
+                      type="button"
+                      className={`runzone${on ? " on" : ""}`}
+                      onClick={() => setZoneId(s.zone.id)}
+                    >
+                      <ProgressRing
+                        value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
+                        covered={s.short <= 0}
+                        size={32}
+                      />
+                      <span className="runzone-text">
+                        <span className="runzone-name">
+                          {s.zone.name}
+                          {i === 0 && <span className="nearesttag">Suggested</span>}
+                        </span>
+                        <span className="runzone-sub">
+                          {corner(s.zone.landmark.a, s.zone.landmark.b)}
+                          {s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""}
+                          {s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}
+                        </span>
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="stopactions">
+                <Button variant="quiet" size="md" onClick={() => setStep("detail")}>
+                  Back
+                </Button>
+                <Button
+                  disabled={!zoneId || busy}
+                  disabledReason={!zoneId ? "Pick where it goes first" : undefined}
+                  onClick={() => void take()}
                 >
-                  <ProgressRing
-                    value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
-                    covered={s.short <= 0}
-                    size={32}
-                  />
-                  <span className="runzone-text">
-                    <span className="runzone-name">
-                      {s.zone.name}
-                      {i === 0 && <span className="nearesttag">Suggested</span>}
-                    </span>
-                    <span className="runzone-sub">
-                      {corner(s.zone.landmark.a, s.zone.landmark.b)}
-                      {s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""}
-                      {s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}
-                    </span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-
-          <Button
-            fullWidth
-            disabled={!zoneId || busy}
-            disabledReason={!zoneId ? "Pick where it goes first" : undefined}
-            onClick={() => void take()}
-          >
-            {busy ? "Adding…" : `Add to ${activeRoute().label}`}
-          </Button>
+                  {busy ? "Adding…" : `Add to ${activeRoute().label}`}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className="pickuplist">
