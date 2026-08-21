@@ -620,6 +620,96 @@ table.plain td { padding: 5px 8px 5px 0; border-bottom: 1px solid var(--surface-
 table.plain td.n { text-align: right; font-family: var(--mono); font-size: 11.5px; }
 table.plain tr.best td { background: #eef4fb; font-weight: 600; }
 
+/* Spec 6.6: the same numbers without colour, for colour-blind readers, for
+   printing, and for anyone who would simply rather read a table. */
+.tableview {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+.tableview[hidden] { display: none; }
+.tvhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.tvhead h2 { font-size: 14px; font-weight: 600; margin: 0; }
+.tvwrap { max-height: 560px; overflow-y: auto; }
+.tvwrap table.plain th {
+  position: sticky; top: 0; background: var(--surface-raised);
+  cursor: pointer; user-select: none;
+}
+.tvwrap table.plain th:hover { color: var(--text-primary); }
+.tvwrap table.plain th .arrow { color: var(--step-500); }
+td.obs { font-size: 10.5px; color: var(--text-secondary); }
+
+/* ---------------------------------------------------------- dark mode
+   Spec 6.2 asks for a *selected* dark mode, re-stepped against the dark
+   surface rather than auto-inverted. The blue ramp keeps its hue but runs
+   the other way in lightness: on a dark ground a near-black block reads as
+   empty, so low values are deep navy and high values are bright.
+   Three states: no attribute follows the system, [data-theme] overrides. */
+:root[data-theme="dark"],
+:root:not([data-theme="light"]) .dark-probe { --probe: 1; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface:#1a1a19; --surface-raised:#232321; --surface-sunken:#141413;
+    --text-primary:#f2f0ec; --text-secondary:#a8a49c; --text-muted:#7d7a72;
+    --border-subtle:#33322f; --border-strong:#4c4a45;
+    --step-150:#17324f; --step-250:#1d4472; --step-350:#255a96;
+    --step-450:#2f74bd; --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
+    --step-500:#5598e7; --step-600:#84b8ee;
+    --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
+    --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
+    --map-street:#1c1b19; --map-parcel:#2c2b28; --map-parcel-empty:#262521;
+    --map-label:#8a867d; --map-label-major:#a8a49c; --map-area-label:#6d6a63;
+    --missing-fill:#2f2e2a;
+  }
+}
+:root[data-theme="dark"] {
+  --surface:#1a1a19; --surface-raised:#232321; --surface-sunken:#141413;
+  --text-primary:#f2f0ec; --text-secondary:#a8a49c; --text-muted:#7d7a72;
+  --border-subtle:#33322f; --border-strong:#4c4a45;
+  --step-150:#17324f; --step-250:#1d4472; --step-350:#255a96;
+  --step-450:#2f74bd; --step-550:#4a92dc; --step-650:#84b8ee; --step-700:#c3ddfa;
+  --step-500:#5598e7; --step-600:#84b8ee;
+  --heat-100:#6b5310; --heat-200:#96701a; --heat-300:#c08c19;
+  --heat-400:#e07d1c; --heat-500:#ef5f2a; --heat-600:#e0301f; --heat-700:#ff6a55;
+  --map-street:#1c1b19; --map-parcel:#2c2b28; --map-parcel-empty:#262521;
+  --map-label:#8a867d; --map-label-major:#a8a49c; --map-area-label:#6d6a63;
+  --missing-fill:#2f2e2a;
+}
+
+/* Pieces that carry their own colour rather than a token. */
+:root[data-theme="dark"] .maplegend,
+:root:not([data-theme="light"]) .maplegend { }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .maplegend { background: rgba(35,35,33,0.94); }
+  :root:not([data-theme="light"]) .curtain { background: rgba(26,26,25,0.86); }
+  :root:not([data-theme="light"]) .badge.observed { background:#1f2c1a; border-color:#3a5230; color:#b9d6ab; }
+  :root:not([data-theme="light"]) .badge.missing  { background:#2e211a; border-color:#5a4132; color:#e0b49a; }
+  :root:not([data-theme="light"]) .big.warn { background:#2e211a; border-color:#5a4132; }
+  :root:not([data-theme="light"]) .big.warn .bv { color:#e8a184; }
+  :root:not([data-theme="light"]) table.plain tr.best td { background:#1b2735; }
+  :root:not([data-theme="light"]) .seg button[aria-pressed="true"],
+  :root:not([data-theme="light"]) button.ghost[aria-pressed="true"] { color:#0d1b2a; }
+}
+:root[data-theme="dark"] .maplegend { background: rgba(35,35,33,0.94); }
+:root[data-theme="dark"] .curtain { background: rgba(26,26,25,0.86); }
+:root[data-theme="dark"] .badge.observed { background:#1f2c1a; border-color:#3a5230; color:#b9d6ab; }
+:root[data-theme="dark"] .badge.missing  { background:#2e211a; border-color:#5a4132; color:#e0b49a; }
+:root[data-theme="dark"] .big.warn { background:#2e211a; border-color:#5a4132; }
+:root[data-theme="dark"] .big.warn .bv { color:#e8a184; }
+:root[data-theme="dark"] table.plain tr.best td { background:#1b2735; }
+:root[data-theme="dark"] .seg button[aria-pressed="true"],
+:root[data-theme="dark"] button.ghost[aria-pressed="true"] { color:#0d1b2a; }
+
+button.theme {
+  font-family: inherit; font-size: 12px; padding: 5px 10px; cursor: pointer;
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  background: var(--surface-raised); color: var(--text-secondary);
+  margin-left: auto;
+}
+button.theme:hover { background: var(--surface-sunken); color: var(--text-primary); }
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -658,6 +748,7 @@ table.plain tr.best td { background: #eef4fb; font-weight: 600; }
   <button role="tab" id="tb-overview" aria-selected="true" aria-controls="tab-overview">Overview</button>
   <button role="tab" id="tb-explore" aria-selected="false" aria-controls="tab-explore">Explore the map</button>
   <button role="tab" id="tb-plan" aria-selected="false" aria-controls="tab-plan">Action plan</button>
+  <button class="theme" id="theme-btn" title="Switch between light and dark">Theme: auto</button>
 </nav>
 
 <section class="tab" id="tab-overview" role="tabpanel" aria-labelledby="tb-overview">
@@ -709,6 +800,7 @@ table.plain tr.best td { background: #eef4fb; font-weight: 600; }
   <div class="seg" role="group" aria-label="Map view">
     <button id="view-blocks" aria-pressed="true">Blocks</button>
     <button id="view-heat" aria-pressed="false">Heat</button>
+    <button id="view-table" aria-pressed="false">Table</button>
   </div>
   <div id="badge" class="badge estimated"><span class="dot"></span><span id="badge-text"></span></div>
   <label class="chk"><input type="checkbox" id="lay-transit"> Trolley</label>
@@ -735,6 +827,16 @@ table.plain tr.best td { background: #eef4fb; font-weight: 600; }
       <span>DSDP published no street count for this month. These blocks are
       unknown, <b>not</b> zero.</span>
     </div>
+  </div>
+</div>
+
+<div class="tableview" id="tableview" hidden>
+  <div class="tvhead">
+    <h2 id="tv-title">Every block</h2>
+    <span class="sub2" id="tv-sub"></span>
+  </div>
+  <div class="tvwrap">
+    <table class="plain" id="tv-table"></table>
   </div>
 </div>
 
@@ -1505,6 +1607,7 @@ function render(mi) {
   paintStats(isMissing ? null : total, mi);
   // Keep a live selection in step with the slider.
   if (typeof selIdx !== "undefined" && selIdx && selIdx.length) renderPanel();
+  if (view === "table") renderTable();
 }
 
 // ---------------------------------------------------------------- stat row
@@ -1565,16 +1668,106 @@ function paintStats(total, mi) {
   statsEl.innerHTML = cards.join("");
 }
 
+
+// ------------------------------------------------- table view (spec 6.6)
+// The same month, without colour. Colour-blind readers, printing, screen
+// readers and anyone who would rather read numbers all land here.
+
+var tvSort = { key: "people", dir: -1 };
+
+function renderTable() {
+  var row = V.values[cur], obsRow = V.is_observed[cur];
+  var isMissing = !!missingSet[months[cur]];
+  var pick = (selIdx && selIdx.length) ? selIdx.slice()
+                                       : V.block_ids.map(function (_, i) { return i; });
+
+  var rows = pick.map(function (i) {
+    return {
+      i: i,
+      name: prettyBlock(i),
+      area: GEO.blocks[i].area,
+      people: row[i],
+      observed: obsRow[i],
+      share: V.share_within_area[i]
+    };
+  });
+
+  var k = tvSort.key, dir = tvSort.dir;
+  rows.sort(function (a, b) {
+    var x = a[k], y = b[k];
+    if (k === "people") {
+      x = x === null ? -1 : x;
+      y = y === null ? -1 : y;
+    }
+    if (typeof x === "string") return dir * x.localeCompare(y);
+    return dir * (x - y);
+  });
+
+  var total = rows.reduce(function (a, r) { return a + (r.people || 0); }, 0);
+  document.getElementById("tv-title").textContent =
+    (selIdx && selIdx.length) ? "Blocks in your selection" : "Every block";
+  document.getElementById("tv-sub").textContent =
+    rows.length + " blocks · " + monthName(months[cur]) + " · " +
+    (isMissing ? "no count published" : fmt(total) + " people");
+
+  function th(key, label, cls) {
+    var on = tvSort.key === key;
+    return "<th data-k='" + key + "'" + (cls ? " class='" + cls + "'" : "") + ">" +
+      label + (on ? " <span class='arrow'>" + (tvSort.dir < 0 ? "▾" : "▴") +
+      "</span>" : "") + "</th>";
+  }
+
+  var html = "<thead><tr>" + th("name", "Block") + th("area", "Neighbourhood") +
+    th("people", "People", "n") + th("share", "Share of area", "n") +
+    th("observed", "Counted?") + "</tr></thead><tbody>";
+
+  html += rows.map(function (r) {
+    return "<tr><td>" + r.name + "</td><td>" + r.area + "</td>" +
+      "<td class='n'>" + (r.people === null ? "no data"
+        : (r.observed ? "" : "~") + fmt(r.people)) + "</td>" +
+      "<td class='n'>" + (r.share * 100).toFixed(1) + "%</td>" +
+      "<td class='obs'>" + (r.people === null ? "not published"
+        : (r.observed ? "counted in person" : "estimated")) + "</td></tr>";
+  }).join("");
+  html += "</tbody>";
+  var tbl = document.getElementById("tv-table");
+  tbl.innerHTML = html;
+
+  Array.prototype.forEach.call(tbl.querySelectorAll("th"), function (el) {
+    el.addEventListener("click", function () {
+      var key = el.dataset.k;
+      // Same column flips direction; a new column starts descending for
+      // numbers and ascending for names, which is what people expect.
+      if (tvSort.key === key) {
+        tvSort.dir = -tvSort.dir;
+      } else {
+        tvSort.key = key;
+        tvSort.dir = (key === "name" || key === "area") ? 1 : -1;
+      }
+      renderTable();
+    });
+  });
+}
+
 function setView(v) {
   view = v;
-  document.getElementById("view-blocks").setAttribute("aria-pressed", String(v === "blocks"));
-  document.getElementById("view-heat").setAttribute("aria-pressed", String(v === "heat"));
+  ["blocks", "heat", "table"].forEach(function (m) {
+    document.getElementById("view-" + m).setAttribute("aria-pressed", String(v === m));
+  });
+  var isTable = v === "table";
   gHeat.style.display = v === "heat" ? "" : "none";
+  // The table replaces the map rather than sitting under it: it is an
+  // alternative to the picture, not a supplement to it.
+  document.querySelector(".map-shell").hidden = isTable;
+  document.querySelector(".legend").hidden = isTable;
+  document.getElementById("tableview").hidden = !isTable;
   paintLegend();
   render(cur);
+  if (isTable) renderTable();
 }
-document.getElementById("view-blocks").addEventListener("click", function () { setView("blocks"); });
-document.getElementById("view-heat").addEventListener("click", function () { setView("heat"); });
+["blocks", "heat", "table"].forEach(function (m) {
+  document.getElementById("view-" + m).addEventListener("click", function () { setView(m); });
+});
 
 // ------------------------------------------------------------ zoom + pan
 var k = 1, tx = 0, ty = 0;
@@ -2306,6 +2499,55 @@ applyTransform();
 render(startIdx);
 
 
+// --------------------------------------------------------------- theme
+// Three states: auto follows the operating system, light and dark override
+// it. Colours live in CSS custom properties, but the SVG reads them once at
+// startup, so a theme change has to re-read the tokens and repaint.
+
+var THEMES = ["auto", "light", "dark"];
+var themeBtn = document.getElementById("theme-btn");
+
+function readTokens() {
+  cs = getComputedStyle(document.documentElement);
+  BREAKS.forEach(function (b) {
+    b.blocksHex = tok(b.blocks);
+    b.heatHex = b.heat ? tok(b.heat) : null;
+  });
+  MISSING_HEX = tok("--missing-fill");
+  EMPTY_HEX = tok("--map-parcel-empty");
+  bg.setAttribute("fill", tok("--map-street"));
+}
+
+function applyTheme(name) {
+  if (name === "auto") {
+    document.documentElement.removeAttribute("data-theme");
+  } else {
+    document.documentElement.setAttribute("data-theme", name);
+  }
+  try { localStorage.setItem("heatmap-theme", name); } catch (e) {}
+  themeBtn.textContent = "Theme: " + name;
+  readTokens();
+  paintLegend();
+  paintMapLegend();
+  render(cur);
+  // Gradients are baked into <defs>, so they need rebuilding by hand.
+  BREAKS.forEach(function (b, i) {
+    if (!b.heatHex) return;
+    var g = document.getElementById("hg" + i);
+    if (!g) return;
+    Array.prototype.forEach.call(g.querySelectorAll("stop"), function (st) {
+      st.setAttribute("stop-color", b.heatHex);
+    });
+  });
+}
+
+var savedTheme = "auto";
+try { savedTheme = localStorage.getItem("heatmap-theme") || "auto"; } catch (e) {}
+themeBtn.addEventListener("click", function () {
+  var i = THEMES.indexOf(themeBtn.textContent.replace("Theme: ", ""));
+  applyTheme(THEMES[(i + 1) % THEMES.length]);
+});
+
 // ============================================================ dashboard
 // Three tabs over one dataset: what we know, where it is, what to do.
 // Panels are populated from the inlined JSON, so adding a new one means
@@ -2642,6 +2884,8 @@ if (PLAN && typeof gPlan !== "undefined") {
 (function () { window.__panelLoaderWorks = V.block_ids.length; })();
 
 /*__PANEL_JS__*/
+
+applyTheme(savedTheme);
 
 // Deep link so a tab can be shared: index.html#plan
 var initial = location.hash.slice(1);

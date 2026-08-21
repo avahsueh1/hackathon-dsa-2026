@@ -157,6 +157,8 @@ you edit and the artifact you ship.
 | Trolley / Shelters / Health | MTS rail lines and stations; HIC shelters as circles sized by bed count, red at ≥95% full; HCAI health facilities as squares coloured by class. Shape carries the category, so the two never rely on colour alone. Hover any of them for detail. |
 | **Select area** | Drag a box over the map. The callout stays to a single number, and the breakdown below opens with a **plain-English sentence** ("about 313 people were sleeping outside here in Jan 2025; there are 109 beds and 27 are free, so 204 people have nowhere to go"), then three numbers, then a short list of what is in the area. Every table sits behind a *Show the full numbers* disclosure. Follows the slider, stays pinned through zoom/pan, and pressing the button again clears it. |
 | Zoom / pan | Scroll and drag. Street labels counter-scale; minor streets appear past ~2.2×. |
+| Blocks / Heat / **Table** | The table is the spec §6.6 fallback: the same month's numbers with no colour at all, sortable, for colour-blind readers, printing and screen readers. It follows the slider and narrows to your selection. |
+| **Theme** | Auto / light / dark, remembered in `localStorage`. Dark is re-stepped from the same hue against the dark surface rather than auto-inverted (spec §6.2) — on a dark ground low values are deep navy and high values are bright, and the parcels sit *above* the street grid the way they do in light mode. |
 
 Box-select includes a block when the box **overlaps its polygon**, not merely
 its centroid — spec §5.5 notes two centroids fall outside their own block.
