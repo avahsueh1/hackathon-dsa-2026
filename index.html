@@ -953,6 +953,26 @@ ul.zwho li::before { content: "\2713"; position: absolute; left: 0; color: #4f7a
   .tonightnums { gap: 16px; }
 }
 
+/* ------------------------------------------------- portion counter (EyePop) */
+
+.trayrow { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.btn.traybtn { display: inline-flex; align-items: center; gap: 7px; }
+.camicon { font-size: 14px; color: var(--step-500); }
+.traythumb {
+  width: 46px; height: 46px; object-fit: cover; border-radius: 7px;
+  border: 1px solid var(--border-strong);
+}
+.trayout {
+  font-size: 11.5px; line-height: 1.5; padding: 8px 11px; border-radius: 7px;
+  margin-bottom: 8px; background: var(--surface-sunken); color: var(--text-secondary);
+}
+.trayout b { color: var(--text-primary); }
+.trayout.ok { background: #e8f0e4; color: #33502a; }
+.trayout.ok b { color: #233b1c; }
+.trayout.demo { background: #fbf0dd; color: #7a5210; }
+.trayout.demo b { color: #573a08; }
+.trayout.err { background: #f6ece6; color: #7a4a30; }
+
 /*__PANEL_CSS__*/
 
 @media (max-width: 900px) {
@@ -1031,6 +1051,14 @@ ul.zwho li::before { content: "\2713"; position: absolute; left: 0; color: #4f7a
     <p class="claimzone" id="claim-zone"></p>
 
     <label class="flab" for="claim-meals">How many meals are you bringing?</label>
+    <div class="trayrow">
+      <button type="button" class="btn traybtn" id="tray-btn">
+        <span class="camicon" aria-hidden="true">&#9673;</span> Photograph the tray
+      </button>
+      <img id="tray-thumb" class="traythumb" alt="" hidden>
+      <input type="file" id="tray-photo" accept="image/*" capture="environment" hidden>
+    </div>
+    <div class="trayout" id="tray-result" hidden></div>
     <div class="quickrow" id="claim-quick"></div>
     <input type="number" id="claim-meals" min="1" max="2000" value="25" class="finput">
 
@@ -3808,6 +3836,115 @@ document.getElementById("claim-confirm").addEventListener("click", function () {
   saveClaims(list, function (a) { return a.insert(added); });
   closeClaim();
 });
+
+
+// ------------------------------------------------------- vision (EyePop.ai)
+// Brief option A, the portion counter: photograph the tray, get the quantity
+// filled in. It sits exactly where the friction is -- nobody wants to type at
+// 10pm -- and it never looks at a person, only at food.
+//
+// Same shape as the claim store: one adapter, swapped in from outside. With no
+// adapter the button runs in DEMO MODE and says so on screen, because a made-up
+// number presented as computer vision is worse than no feature.
+//
+// The estimate always lands in an editable field. A chef who can see the tray
+// outranks a model, every time.
+//
+// See docs/EYEPOP.md.
+
+var Vision = {
+  adapter: null,          // set this to go live; see docs/EYEPOP.md
+  portionsPerObject: 1,   // how many meals one detected item represents
+  minConfidence: 0.4,
+
+  available: function () { return !!Vision.adapter; },
+
+  // adapter.detect(file) -> Promise<{ objects: [{classLabel, confidence, ...}] }>
+  // which is EyePop's own prediction shape, so their SDK result passes straight
+  // through with no reshaping.
+  estimate: function (file) {
+    if (!Vision.adapter) return Promise.resolve(Vision.demoEstimate(file));
+    return Vision.adapter.detect(file).then(function (pred) {
+      var objs = (pred && pred.objects) || [];
+      var kept = objs.filter(function (o) {
+        return (o.confidence === undefined || o.confidence >= Vision.minConfidence);
+      });
+      var counts = {};
+      kept.forEach(function (o) {
+        var k = o.classLabel || "item";
+        counts[k] = (counts[k] || 0) + 1;
+      });
+      var meals = Math.max(1, Math.round(kept.length * Vision.portionsPerObject));
+      var detail = Object.keys(counts).sort(function (a, b) {
+        return counts[b] - counts[a];
+      }).map(function (k) { return counts[k] + " " + k; }).join(", ");
+      return {
+        meals: meals,
+        detail: detail || "no items detected",
+        count: kept.length,
+        demo: false
+      };
+    });
+  },
+
+  // Deterministic from the file so the same photo gives the same answer twice
+  // in a demo. Labelled as a demo everywhere it surfaces.
+  demoEstimate: function (file) {
+    var seed = (file.size % 37) + (file.name.length % 11);
+    var count = 8 + (seed % 25);
+    return Promise.resolve({
+      meals: count * 2,
+      detail: count + " trays (demo)",
+      count: count,
+      demo: true
+    });
+  }
+};
+
+window.SurplusVision = Vision;
+
+// ------------------------------------------------------------- the UI hook
+
+(function wireVision() {
+  var input = document.getElementById("tray-photo");
+  var out = document.getElementById("tray-result");
+  var thumb = document.getElementById("tray-thumb");
+  var btn = document.getElementById("tray-btn");
+  if (!input || !out || !btn) return;
+
+  btn.addEventListener("click", function () { input.click(); });
+
+  input.addEventListener("change", function () {
+    var file = input.files && input.files[0];
+    if (!file) return;
+
+    // Preview from a local object URL -- the image never leaves the browser
+    // unless an adapter is configured to send it.
+    var url = URL.createObjectURL(file);
+    thumb.src = url;
+    thumb.hidden = false;
+    thumb.onload = function () { URL.revokeObjectURL(url); };
+
+    out.hidden = false;
+    out.className = "trayout working";
+    out.textContent = Vision.available()
+      ? "Counting portions…" : "Estimating (demo mode)…";
+
+    Vision.estimate(file).then(function (r) {
+      document.getElementById("claim-meals").value = r.meals;
+      out.className = "trayout" + (r.demo ? " demo" : " ok");
+      out.innerHTML = (r.demo
+        ? "<b>Demo mode — no vision model connected.</b> "
+        : "<b>Counted " + r.detail + ".</b> ") +
+        "Suggested <b>" + r.meals + " meals</b>. Change it if that looks wrong.";
+    }).catch(function (err) {
+      // A vision failure must never block a food drop.
+      console.warn("portion estimate failed:", err);
+      out.className = "trayout err";
+      out.textContent = "Could not read the photo. Type the number instead.";
+    });
+  });
+})();
 
 // ------------------------------------------------------ my drops + SB 1383
 

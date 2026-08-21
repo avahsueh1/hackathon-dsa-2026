@@ -105,6 +105,29 @@ Supabase implementation and the three things to agree on first.
 [`supabase/schema.sql`](supabase/schema.sql) has the table, the realtime
 publication and the row-level security policies.
 
+## Connecting EyePop.ai
+
+The brief's **option A, the portion counter**, is built and wired into the claim
+flow: photograph the tray, the quantity fills itself in. It needs a Pop and a key,
+not code.
+
+```js
+window.SurplusVision.adapter = { detect: (file) => Promise /* EyePop prediction */ };
+window.SurplusVision.portionsPerObject = 2;
+```
+
+`detect` returns EyePop's own prediction shape unchanged, so their SDK result
+passes straight through. With no adapter the button runs in **demo mode and says
+so on screen** — a made-up number presented as computer vision is worse than no
+feature.
+
+**The API key must not go in the browser** (EyePop's docs are explicit). The
+browser gets a short-lived session token from a Supabase Edge Function that holds
+the key, then uploads directly to the worker endpoint.
+
+[`docs/EYEPOP.md`](docs/EYEPOP.md) has the Edge Function, the browser adapter, and
+how to calibrate `portionsPerObject` against a real tray.
+
 ## Honest limits
 
 - **Claims are stored in this browser** (`localStorage`). That demonstrates the
