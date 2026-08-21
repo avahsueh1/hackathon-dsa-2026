@@ -7,7 +7,6 @@ import { corner } from "../lib/streets";
 import { fmt, plural } from "../lib/format";
 import { windowLabel } from "../lib/food";
 import PickupMap from "../components/PickupMap";
-import ProgressRing from "../components/ProgressRing";
 import Button from "../components/Button";
 import EmptyState from "../components/EmptyState";
 
@@ -73,10 +72,6 @@ export default function Pickups({
 }: Props) {
   const [when, setWhen] = useState<When>("any");
   const [selected, setSelected] = useState<string | null>(null);
-  // Two steps on purpose. Tapping a ping is asking "what is this?", not
-  // "commit me to a destination" -- leading with four zone options answered a
-  // question nobody had asked yet.
-  const [step, setStep] = useState<"detail" | "destination">("detail");
   // Which zone is being written, so its row can say so. There is no separate
   // confirm: picking the zone IS the decision, and asking again after it was
   // just answered is one tap too many at 10pm.
@@ -127,9 +122,9 @@ export default function Pickups({
     return names.length === 1 ? names[0] : `${names.length} zones`;
   }, [route]);
 
-  // Closest-and-shortest first, recomputed for whichever pickup is selected.
-  const suggestions = useMemo(
-    () => (chosen ? suggestZones(stats, { lat: chosen.lat, lng: chosen.lng }).slice(0, 4) : []),
+  // Closest zone that still needs food, for whichever pickup is selected.
+  const suggested = useMemo(
+    () => (chosen ? (suggestZones(stats, { lat: chosen.lat, lng: chosen.lng })[0] ?? null) : null),
     [chosen, stats],
   );
 
@@ -138,11 +133,6 @@ export default function Pickups({
   useEffect(() => {
     if (selected && !open.some((p) => p.id === selected)) setSelected(null);
   }, [open, selected]);
-
-  // Never carry the previous pickup's step over to the next one.
-  useEffect(() => {
-    setStep("detail");
-  }, [selected]);
 
   const totalMeals = open.reduce((a, p) => a + p.quantity, 0);
 
@@ -235,60 +225,31 @@ export default function Pickups({
             <span className="zcard-meta open">{chosen.pickup_note}</span>
           )}
 
-          {step === "detail" ? (
-            <Button fullWidth onClick={() => setStep("destination")}>
-              Add to route
-            </Button>
-          ) : (
-            <>
-              <span className="ss-label pick-label dropq">
-                Where do you want to drop it off?
+          {/* No second question. The suggestion is the closest zone that still
+              needs food, which is the right answer almost every time -- and
+              when it is not, every stop on the route screen has a Change. */}
+          {suggested && (
+            <span className="dropsto">
+              <span className="ss-label pick-label">Drops at</span>
+              <span className="dropsto-zone">{suggested.zone.name}</span>
+              <span className="dropsto-sub">
+                {corner(suggested.zone.landmark.a, suggested.zone.landmark.b)}
+                {suggested.distance != null ? ` · ${prettyDistance(suggested.distance)} away` : ""}
+                {suggested.short > 0 ? ` · ${fmt(suggested.short)} short` : " · already covered"}
               </span>
-
-              <div className="dropchoices">
-                {suggestions.map((s, i) => (
-                  <button
-                    key={s.zone.id}
-                    type="button"
-                    className={`runzone${busy === s.zone.id ? " on" : ""}`}
-                    disabled={busy !== null}
-                    onClick={() => void take(s.zone.id)}
-                  >
-                    <ProgressRing
-                      value={s.short <= 0 ? 1 : Math.min(1, chosen.quantity / s.short)}
-                      covered={s.short <= 0}
-                      size={32}
-                    />
-                    <span className="runzone-text">
-                      <span className="runzone-name">
-                        {s.zone.name}
-                        {i === 0 && busy === null && (
-                          <span className="nearesttag">Suggested</span>
-                        )}
-                      </span>
-                      <span className="runzone-sub">
-                        {busy === s.zone.id
-                          ? `Adding to ${activeRoute().label}…`
-                          : `${corner(s.zone.landmark.a, s.zone.landmark.b)}${
-                              s.distance != null ? ` · ${prettyDistance(s.distance)} away` : ""
-                            }${s.short > 0 ? ` · ${fmt(s.short)} short` : " · already covered"}`}
-                      </span>
-                    </span>
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                variant="quiet"
-                size="md"
-                fullWidth
-                disabled={busy !== null}
-                onClick={() => setStep("detail")}
-              >
-                Back
-              </Button>
-            </>
+            </span>
           )}
+
+          <Button
+            fullWidth
+            disabled={!suggested || busy !== null}
+            disabledReason={!suggested ? "No zone needs food right now" : undefined}
+            onClick={() => suggested && void take(suggested.zone.id)}
+          >
+            {busy ? `Adding to ${activeRoute().label}…` : `Add to ${activeRoute().label}`}
+          </Button>
+
+          <span className="pick-help">You can change where it goes on your route.</span>
         </div>
       ) : (
         <div className="pickuplist">

@@ -956,3 +956,21 @@ button { font: inherit; color: inherit; }
    going back is a correction, adding the stop is the point. */
 .pickupcard .stopactions .btn:first-child { flex: 0 0 auto; }
 .pickupcard .stopactions .btn:last-child { flex: 1; }
+
+/* Where this pickup is headed, stated rather than asked. */
+.dropsto {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--s-2) var(--s-3);
+  background: var(--mint-tint);
+  border-radius: var(--r-sm);
+  min-width: 0;
+}
+.dropsto-zone {
+  font: var(--t-body-lg);
+  font-weight: 650;
+  color: var(--mint-ink);
+  overflow-wrap: anywhere;
+}
+.dropsto-sub { font: var(--t-caption); color: var(--text-secondary); overflow-wrap: anywhere; }
