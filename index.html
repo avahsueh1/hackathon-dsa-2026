@@ -173,9 +173,55 @@ rect.selbox {
   padding-top: 16px;
 }
 .detail.on { display: block; }
-.detail-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
-.detail-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
-.dsub { font-size: 11.5px; color: var(--text-secondary); }
+
+/* The breakdown opens with a sentence, because a paragraph is the only format
+   that needs no key. Numbers and tables follow for people who want them. */
+.story {
+  font-size: 15.5px; line-height: 1.62; margin: 0 0 16px;
+  max-width: 62ch; color: var(--text-primary);
+}
+.story b { font-weight: 600; }
+.story .q { color: var(--text-secondary); }
+
+.bigthree {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 12px; margin-bottom: 20px;
+}
+.big {
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px; padding: 13px 15px;
+}
+.big .bv { font-size: 27px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.1; }
+.big .bk { font-size: 12px; color: var(--text-secondary); margin-top: 3px; }
+.big.warn { background: #fbf1ec; border-color: #e6cdbe; }
+.big.warn .bv { color: #9c452a; }
+
+.whatshead {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin: 0 0 7px; font-weight: 600;
+}
+ul.whats { list-style: none; margin: 0 0 18px; padding: 0; }
+ul.whats li {
+  font-size: 13.5px; line-height: 1.6; padding-left: 18px; position: relative;
+}
+ul.whats li::before {
+  content: "•"; position: absolute; left: 4px; color: var(--text-muted);
+}
+ul.whats li b { font-weight: 600; }
+
+details.more { border-top: 1px solid var(--border-subtle); padding-top: 4px; }
+details.more summary {
+  cursor: pointer; font-size: 12.5px; color: var(--text-secondary);
+  padding: 8px 0; list-style: none; user-select: none;
+}
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::before { content: "▸  "; color: var(--text-muted); }
+details.more[open] summary::before { content: "▾  "; }
+details.more summary:hover { color: var(--text-primary); }
+.moreinner { padding-top: 8px; }
+.foot { font-size: 10.5px; color: var(--text-muted); margin: 6px 0 0; line-height: 1.5; }
+
 
 .dgrid {
   display: grid;
@@ -241,6 +287,8 @@ table.ptab td.bid { font-family: var(--mono); font-size: 10.5px; word-break: bre
   .psplit { grid-template-columns: 1fr; gap: 14px; }
   .dgrid { grid-template-columns: repeat(2, 1fr); }
   .dcols, .dcols2 { grid-template-columns: 1fr; gap: 16px; }
+  .bigthree { grid-template-columns: 1fr; gap: 8px; }
+  .story { font-size: 14.5px; }
 }
 
 /* ------------------------------------------------------------- stat row */
@@ -498,11 +546,11 @@ text.arealabel {
 <div class="stats" id="stats"></div>
 
 <div class="legend" id="legend">
-  <div class="legend-title">Estimated unsheltered persons per block</div>
+  <div class="legend-title">People sleeping outside, per block</div>
 </div>
 
 <div class="map-shell">
-  <svg id="map" role="img" aria-label="Street map of downtown San Diego with blocks shaded by estimated unsheltered persons"></svg>
+  <svg id="map" role="img" aria-label="Street map of downtown San Diego, with each block shaded by how many people were sleeping outside"></svg>
   <div class="maplegend" id="maplegend"></div>
   <div class="curtain" id="curtain">
     <div class="cbox">
@@ -516,7 +564,7 @@ text.arealabel {
 <div class="panel" id="panel">
   <div class="callout">
     <div class="co-num">
-      <span id="co-value">—</span><small id="co-unit">persons</small>
+      <span id="co-value">—</span><small id="co-unit">people</small>
     </div>
     <div class="co-meta" id="co-meta"></div>
     <button class="ghost" id="co-jump">Full breakdown &darr;</button>
@@ -525,46 +573,57 @@ text.arealabel {
 </div>
 
 <section class="detail" id="detail">
-  <div class="detail-head">
-    <h2>Selection breakdown</h2>
-    <span class="dsub" id="detail-sub"></span>
-  </div>
+  <p class="story" id="story"></p>
 
-  <div class="dgrid" id="d-stats"></div>
+  <div class="bigthree" id="bigthree"></div>
 
-  <div class="dcols">
-    <div class="dsec">
-      <h3>Composition by area</h3>
-      <table class="ptab"><tbody id="d-areas"></tbody></table>
-    </div>
-    <div class="dsec">
-      <h3 id="d-shelters-title">Shelters in selection</h3>
-      <table class="ptab"><tbody id="d-shelters"></tbody></table>
-    </div>
-    <div class="dsec">
-      <h3 id="d-health-title">Health &amp; access</h3>
-      <table class="ptab"><tbody id="d-health"></tbody></table>
-    </div>
-  </div>
+  <h3 class="whatshead">What&rsquo;s in this area</h3>
+  <ul class="whats" id="whats"></ul>
 
-  <div class="dsec">
-    <h3>Selection total over time</h3>
-    <svg class="spark" id="panel-spark" preserveAspectRatio="none"></svg>
-    <div class="sparkcap" id="panel-sparkcap"></div>
-  </div>
+  <details class="more" id="more">
+    <summary>Show the full numbers</summary>
+    <div class="moreinner">
 
-  <div class="dcols2">
-    <div class="dsec">
-      <h3>Physically counted months</h3>
-      <table class="ptab"><tbody id="d-months"></tbody></table>
-    </div>
-    <div class="dsec">
-      <h3 id="d-blocks-title">Every block in selection</h3>
-      <div class="tallwrap">
-        <table class="ptab"><tbody id="d-blocks"></tbody></table>
+      <div class="dcols">
+        <div class="dsec">
+          <h3>Which neighbourhoods</h3>
+          <table class="ptab"><tbody id="d-areas"></tbody></table>
+        </div>
+        <div class="dsec">
+          <h3 id="d-shelters-title">Shelters here</h3>
+          <table class="ptab"><tbody id="d-shelters"></tbody></table>
+        </div>
+        <div class="dsec">
+          <h3 id="d-health-title">Health care</h3>
+          <table class="ptab"><tbody id="d-health"></tbody></table>
+        </div>
       </div>
+
+      <div class="dsec">
+        <h3>How this area has changed</h3>
+        <svg class="spark" id="panel-spark" preserveAspectRatio="none"></svg>
+        <div class="sparkcap" id="panel-sparkcap"></div>
+      </div>
+
+      <div class="dcols2">
+        <div class="dsec">
+          <h3>Months volunteers actually walked these blocks</h3>
+          <table class="ptab"><tbody id="d-months"></tbody></table>
+          <p class="foot">Every other month on the slider is an estimate worked
+          out from the neighbourhood total.</p>
+        </div>
+        <div class="dsec">
+          <h3 id="d-blocks-title">Block by block</h3>
+          <div class="tallwrap">
+            <table class="ptab"><tbody id="d-blocks"></tbody></table>
+          </div>
+          <p class="foot"><b>~</b> means the number is an estimate. A plain
+          number was counted in person.</p>
+        </div>
+      </div>
+
     </div>
-  </div>
+  </details>
 </section>
 
 <p class="caption">
@@ -1591,54 +1650,99 @@ function renderPanel() {
 
   // ---- the callout: one number, nothing else
   document.getElementById("co-value").textContent = isMissing ? "—" : fmt(total);
-  document.getElementById("co-unit").textContent = isMissing ? "" : "persons";
+  document.getElementById("co-unit").textContent = isMissing ? "" : "people";
   document.getElementById("co-meta").textContent =
     selIdx.length + " block" + (selIdx.length === 1 ? "" : "s") + " · " +
     monthName(months[cur]) +
     (isMissing ? " · no count published" : "");
 
-  document.getElementById("detail-sub").textContent =
-    areaNames.map(function (a) { return a + " (" + byArea[a].blocks + ")"; }).join(" · ") +
-    " · " + monthName(months[cur]);
+  // ---- the story, in one paragraph. A sentence needs no legend, which is why
+  // it comes before any number grid or table.
+  var when = monthName(months[cur]);
+  var everythingCounted = nEst === 0 && nNull === 0;
+  var about = everythingCounted ? "" : "about ";
+  var cpb = SHELTERS ? SHELTERS.benchmarks.cost_per_bed_year_usd : 0;
+  var story;
 
-  // ---- stat cells
-  function cell(k, v, unit, note) {
-    return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v +
-      (unit ? ' <small>' + unit + "</small>" : "") + "</div>" +
-      (note ? '<div class="n">' + note + "</div>" : "") + "</div>";
+  if (isMissing) {
+    story = "Nobody published a street count for <b>" + when + "</b>, so there is " +
+      "no figure for this area. That means <b>unknown</b>, not zero — drag the " +
+      "slider to a month with a count.";
+  } else {
+    story = "In this part of downtown, " + about + "<b>" + fmt(total) + " people</b>" +
+      (everythingCounted ? " were counted" : " were") + " sleeping outside in <b>" +
+      when + "</b>. ";
+    if (beds > 0) {
+      story += "There " + (beds === 1 ? "is" : "are") + " <b>" + fmt(beds) +
+        " shelter bed" + (beds === 1 ? "" : "s") + "</b> in the same area, and <b>" +
+        free + "</b> of them " + (free === 1 ? "is" : "are") + " free. ";
+    } else {
+      story += "There are <b>no shelter beds at all</b> in this area. ";
+    }
+    if (gap > 0) {
+      story += "So " + about + "<b>" + fmt(gap) + " people have nowhere to go</b>";
+      if (cpb) {
+        story += ", and housing them would cost roughly <b>$" +
+          fmt(gap * cpb / 1e6, 1) + " million a year</b>";
+      }
+      story += ".";
+    } else {
+      story += "That is enough beds for everyone counted here.";
+    }
   }
-  var per100 = (!isMissing && total > 0) ? (beds / total * 100) : null;
-  // Six cells, not eight. Block count already sits in the callout and beds-per-
-  // 100 reads better as a note than as its own number.
-  var cells = [
-    cell("People here", isMissing ? "—" : fmt(total), "people",
-      isMissing ? "no count published this month"
-        : [nObs ? nObs + " blocks counted" : "",
-           nEst ? nEst + " estimated" : ""].filter(Boolean).join(" · ")),
-    cell("Share of downtown", pct === null ? "—" : pct.toFixed(1) + "%", "",
-      pct === null ? "" : "of " + fmt(monthTotal) + " people downtown"),
-    cell("Shelter beds here", fmt(beds), "beds",
-      shIn.length
-        ? free + " free · " + (per100 === null ? "" : per100.toFixed(0) +
-            " beds per 100 people")
-        : "no shelter in this area"),
-    cell("People without a bed", gap === null ? "—" : fmt(Math.max(0, gap)), "",
-      gap === null ? "" : (gap > 0 && SHELTERS
-        ? "$" + fmt(gap * SHELTERS.benchmarks.cost_per_bed_year_usd / 1e6, 2) +
-          "M a year to house them"
-        : "enough beds here for the count")),
-    cell("Clinics &amp; hospitals", String(hIn.length), "",
-      hIn.length ? hIn.map(function (f) { return f.cls; })
-        .filter(function (v, k, arr) { return arr.indexOf(v) === k; })
-        .join(", ").replace(/_/g, " ") : "none in this area"),
-    cell("Trolley stops", String(stIn), "",
-      stIn ? "walkable transit" : "no trolley stop here")
-  ];
-  document.getElementById("d-stats").innerHTML = cells.join("");
+  document.getElementById("story").innerHTML = story;
+
+  // ---- three numbers, not eight
+  function big(value, label, warn) {
+    return '<div class="big' + (warn ? " warn" : "") + '"><div class="bv">' +
+      value + '</div><div class="bk">' + label + "</div></div>";
+  }
+  document.getElementById("bigthree").innerHTML =
+    big(isMissing ? "—" : fmt(total), "people sleeping outside") +
+    big(fmt(free), "shelter beds free" + (beds ? " of " + fmt(beds) : "")) +
+    big(gap === null ? "—" : fmt(Math.max(0, gap)), "people with nowhere to go",
+        gap > 0);
+
+  // ---- plain-language inventory
+  var whats = [];
+  if (shIn.length) {
+    whats.push("<b>" + shIn.length + " shelter" + (shIn.length === 1 ? "" : "s") +
+      "</b> with " + fmt(beds) + " beds between them, " +
+      (beds ? Math.round((beds - free) / beds * 100) : 0) + "% full");
+  } else {
+    whats.push("<b>No shelter</b> in this area");
+  }
+  if (HEALTH) {
+    var clinics = hIn.filter(function (f) { return f.cls === "clinic"; }).length;
+    var others = hIn.length - clinics;
+    if (hIn.length) {
+      whats.push("<b>" + hIn.length + " health " +
+        (hIn.length === 1 ? "facility" : "facilities") + "</b>" +
+        (clinics ? " (" + clinics + " clinic" + (clinics === 1 ? "" : "s") +
+          (others ? ", " + others + " other" : "") + ")" : ""));
+    } else {
+      whats.push("<b>No clinic or hospital</b> in this area");
+    }
+    if (HEALTH.totals.nearest_trauma_km) {
+      whats.push("Nearest emergency room is <b>" +
+        HEALTH.totals.nearest_trauma_km.toFixed(1) + " km away</b> (" +
+        HEALTH.totals.nearest_trauma + ")");
+    }
+  }
+  if (TRANSIT) {
+    whats.push(stIn ? "<b>" + stIn + " trolley stop" + (stIn === 1 ? "" : "s") +
+      "</b> for getting here" : "<b>No trolley stop</b> in this area");
+  }
+  whats.push("Mostly <b>" + areaNames[0] + "</b>" +
+    (areaNames.length > 1 ? ", plus " + (areaNames.length - 1) + " other " +
+      (areaNames.length === 2 ? "neighbourhood" : "neighbourhoods") : "") +
+    " · " + selIdx.length + " blocks");
+  document.getElementById("whats").innerHTML =
+    whats.map(function (w) { return "<li>" + w + "</li>"; }).join("");
 
   // ---- composition by area
-  var ah = "<tr class='hdr'><td>Area</td><td class='num'>Blocks</td>" +
-           "<td class='num'>People</td><td class='num'>% of box</td></tr>";
+  var ah = "<tr class='hdr'><td>Neighbourhood</td><td class='num'>Blocks</td>" +
+           "<td class='num'>People</td><td class='num'>Share</td></tr>";
   ah += areaNames.map(function (a) {
     var A = byArea[a];
     return "<tr><td>" + a + "</td><td class='num'>" + A.blocks + "</td><td class='num'>" +
@@ -1657,7 +1761,7 @@ function renderPanel() {
   var sh = "";
   if (shIn.length) {
     sh = "<tr class='hdr'><td>Shelter</td><td class='num'>Beds</td>" +
-         "<td class='num'>Full</td><td class='num'>FY25</td></tr>";
+         "<td class='num'>Full</td><td class='num'>Yearly cost</td></tr>";
     sh += shIn.sort(function (a, b) { return b.beds - a.beds; }).map(function (s) {
       return "<tr><td>" + s.name +
         (s.org ? "<br><span style='color:var(--text-muted);font-size:10.5px'>run by " +
@@ -1690,7 +1794,7 @@ function renderPanel() {
   var hh = "";
   if (HEALTH) {
     if (hIn.length) {
-      hh += "<tr class='hdr'><td>Facility</td><td class='num'>Type</td></tr>";
+      hh += "<tr class='hdr'><td>In this area</td><td class='num'>Type</td></tr>";
       hh += hIn.sort(function (a, b) { return a.cls.localeCompare(b.cls); })
         .map(function (f) {
           return "<tr><td>" + f.name + "</td><td class='num'>" +
@@ -1717,7 +1821,7 @@ function renderPanel() {
 
   // ---- counted months only: these are observation, not model output
   var mh = "<tr class='hdr'><td>Month</td><td class='num'>People</td>" +
-           "<td class='num'>% downtown</td></tr>";
+           "<td class='num'>Share of downtown</td></tr>";
   mh += V.observed_months.map(function (m) {
     var mi = month_index[m];
     if (mi === undefined) return "";
@@ -1742,15 +1846,13 @@ function renderPanel() {
   var ranked = selIdx.slice().sort(function (a, b) {
     return (row[b] === null ? -1 : row[b]) - (row[a] === null ? -1 : row[a]);
   });
-  var bh = "<tr class='hdr'><td>Block</td><td class='num'>People</td>" +
-           "<td class='num'>% of area</td><td class='num'>Confidence</td></tr>";
+  var bh = "<tr class='hdr'><td>Block</td><td class='num'>People</td></tr>";
   bh += ranked.map(function (i) {
     var v = row[i];
     return "<tr><td>" + (obsRow[i] ? "<span class='obs-dot'></span>" : "") +
       prettyBlock(i) + "</td><td class='num'>" +
       (v === null ? "no data" : (obsRow[i] ? "" : "~") + fmt(v)) + "</td>" +
-      "<td class='num'>" + (V.share_within_area[i] * 100).toFixed(1) + "%</td>" +
-      "<td class='num'>" + confidenceOf(i) + "</td></tr>";
+      "</td></tr>";
   }).join("");
   document.getElementById("d-blocks").innerHTML = bh;
 
@@ -1797,8 +1899,9 @@ function renderSpark() {
     '" stroke-width="1.6" stroke-linejoin="round"/>' + dots;
 
   document.getElementById("panel-sparkcap").textContent =
-    months[0] + " – " + months[months.length - 1] + " · peak " +
-    fmt(max) + " persons · dots are physically counted months";
+    monthName(months[0]) + " to " + monthName(months[months.length - 1]) +
+    " · the busiest month here was " + fmt(max) + " people · each dot is a month " +
+    "volunteers walked these blocks in person";
 }
 
 document.getElementById("reset").addEventListener("click", function () {
@@ -1884,6 +1987,10 @@ svg.addEventListener("mouseover", function (e) {
 svg.addEventListener("mousemove", function (e) {
   if (dragging) { tip.style.display = "none"; return; }
   if (tip.style.display === "block") moveTip(e);
+});
+svg.addEventListener("mouseleave", function () {
+  tipIdx = -1;
+  tip.style.display = "none";
 });
 svg.addEventListener("mouseout", function (e) {
   var t = e.target;
