@@ -24,6 +24,7 @@ import csv
 import json
 import math
 import os
+import re
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -68,6 +69,50 @@ BENCHMARKS = {
     "cost_per_bed_night_usd": round(30_700_000 / 1000 / 365, 2),
     "source": IBA,
 }
+
+
+# The HIC ships project names with the operator's acronym bolted on the front
+# ("PATH - Connections Housing") and program jargon inside ("SDHC TAY Interim
+# Shelter"). Both are meaningless to anyone outside the funding system, so the
+# display name drops the prefix and expands the jargon, and the operator is
+# carried separately in plain English.
+GLOSSARY = [
+    ("TAY", "Transition-Age Youth"),
+    ("Gen Op Funds", "General Operating"),
+    ("JKC", "Joan Kroc Center"),
+    ("SDHC", "San Diego Housing Commission"),
+    ("AUD", "Alcohol Use Disorder"),
+]
+
+
+def strip_paren_acronym(org):
+    """'People Assisting the Homeless (PATH)' -> ('People Assisting the Homeless', 'PATH')"""
+    org = (org or "").strip()
+    if org.endswith(")") and "(" in org:
+        head, acr = org.rsplit("(", 1)
+        return head.strip(), acr[:-1].strip()
+    return org, None
+
+
+def display_name(project, org_full, acronym):
+    """Drop a leading operator prefix, then expand the acronyms we are sure of."""
+    name = (project or "").strip()
+    for prefix in filter(None, (acronym, org_full)):
+        for sep in (" - ", " – ", " "):
+            token = prefix + sep
+            if name.lower().startswith(token.lower()) and len(name) > len(token) + 3:
+                name = name[len(token):].strip()
+                break
+    # A funder prefix is not the operator, so it is stripped separately.
+    for funder in ("SDHC - ", "SDHC ", "HSSD - ", "HSSD "):
+        if name.startswith(funder):
+            name = name[len(funder):].strip()
+            break
+    # Word boundaries matter: a bare substring swap turns "Safe STAY Wellness"
+    # into "Safe STransition-Age Youth Wellness".
+    for short, long in GLOSSARY:
+        name = re.sub(r"\b" + re.escape(short) + r"\b", long, name)
+    return name
 
 
 def num(s, cast=float):
@@ -116,10 +161,13 @@ for r in hic:
     beds = num(r["Total_Beds"], int) or 0
     pit = num(r["PIT_Count"], int) or 0
     name = (r["Project_Name_1"] or r["Project_Name"] or "").strip()
-    fund = FUNDING.get(name)
+    fund = FUNDING.get(name)          # keyed on the RAW name, so the match is stable
+    org_full, acronym = strip_paren_acronym(r["Organization_Name"])
     shelters.append({
-        "name": name,
-        "org": (r["Organization_Name"] or "").strip(),
+        "name": display_name(name, org_full, acronym),
+        "raw_name": name,
+        "org": org_full,
+        "org_acronym": acronym,
         "address": (r["Address"] or "").strip(),
         "lonlat": [round(lon, 6), round(lat, 6)],
         "beds": beds,
@@ -139,6 +187,9 @@ total_beds = sum(s["beds"] for s in shelters)
 total_occ = sum(s["occupied"] for s in shelters)
 
 print("%d shelters in the downtown window" % len(shelters))
+for sh in shelters:
+    if sh["name"] != sh["raw_name"]:
+        print("    %-44s -> %s" % (sh["raw_name"][:44], sh["name"]))
 print("  %d beds, %d occupied, %d free (%.1f%% utilised)"
       % (total_beds, total_occ, total_beds - total_occ,
          100.0 * total_occ / total_beds if total_beds else 0))

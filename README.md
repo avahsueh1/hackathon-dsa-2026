@@ -148,6 +148,19 @@ you edit and the artifact you ship.
 
 Box-select includes a block when the box **overlaps its polygon**, not merely
 its centroid — spec §5.5 notes two centroids fall outside their own block.
+Pressing **Select area** a second time clears the box and the breakdown.
+
+**Names are shown in plain English, not source keys.** Every `block_id` is
+exactly its east street, an underscore, then its north street (verified for all
+382), so `17TH_ST_K_ST` renders as "17th St & K St" from the two street fields
+with no parsing. Shelter names drop the operator acronym the HIC bolts on the
+front — "PATH - Connections Housing" becomes "Connections Housing", run by
+People Assisting the Homeless — and known jargon is expanded (TAY →
+Transition-Age Youth). The raw values stay in `shelters.json` as `raw_name`.
+
+A **map key** in the bottom-left corner names the overlay marks, and lists only
+the layers actually switched on. Shelters are circles, health facilities are
+squares, so the two are distinguishable without relying on colour.
 
 ## Outside data
 

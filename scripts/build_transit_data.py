@@ -70,6 +70,11 @@ routes = {}
 for r in rows(z, "routes.txt"):
     if r["route_type"] not in RAIL_TYPES:
         continue
+    # Special-event services (the Magic: The Gathering shuttle) are real rail
+    # routes in the feed but do not run on a normal schedule, so putting them
+    # in a legend about transit access is misleading.
+    if "event" in (r.get("route_long_name", "") + r.get("route_short_name", "")).lower():
+        continue
     routes[r["route_id"]] = {
         "id": r["route_id"],
         "name": (r.get("route_short_name") or "").strip(),

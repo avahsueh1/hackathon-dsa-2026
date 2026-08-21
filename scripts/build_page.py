@@ -18,7 +18,10 @@ external requests, nothing to fetch at runtime.
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "data", "out")
@@ -78,3 +81,22 @@ size = os.path.getsize(PAGE)
 print("inlined %d blocks x %d months into index.html"
       % (len(payload["geometry"]["blocks"]), len(payload["values"]["months"])))
 print("  index.html  %.1f KB  (self-contained, 0 external requests)" % (size / 1024))
+
+# A broken string literal in the inline script produces a blank page and no
+# build error, which is exactly how it slips through. If node happens to be
+# installed, syntax-check the app script and fail the build. Optional by
+# design: the project's zero-install rule means node may not be there at all.
+node = shutil.which("node")
+if not node:
+    print("  note: node not found, skipping the JS syntax check")
+else:
+    start = html.rindex("<script>") + len("<script>")
+    end = html.index("</script>", start)
+    tmp = os.path.join(tempfile.gettempdir(), "heatmap_syntax_check.js")
+    with open(tmp, "w", encoding="utf-8") as fh:
+        fh.write(html[start:end])
+    proc = subprocess.run([node, "--check", tmp], capture_output=True, text=True)
+    os.remove(tmp)
+    if proc.returncode != 0:
+        sys.exit("JS SYNTAX ERROR in the inline script:\n" + (proc.stderr or proc.stdout))
+    print("  js syntax  ok")
