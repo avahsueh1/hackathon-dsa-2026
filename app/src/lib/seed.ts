@@ -11,7 +11,7 @@
 // pins land where the streets actually are.
 
 import type { Pickup } from "../types";
-import { todayAt } from "./food";
+import { minutesFromNow } from "./food";
 
 interface Seed {
   restaurant_name: string;
@@ -20,6 +20,7 @@ interface Seed {
   notes: string | null;
   lat: number;
   lng: number;
+  /** Minutes from now. Negative is already open, or already past. */
   from: number;
   to: number;
 }
@@ -31,7 +32,7 @@ const SEEDS: Seed[] = [
     quantity: 40,
     notes: "Trays are heavy — bring a cart if you have one",
     lat: 32.7248, lng: -117.1690,
-    from: 20, to: 21,
+    from: -25, to: 35,
   },
   {
     restaurant_name: "Prep Kitchen",
@@ -39,7 +40,7 @@ const SEEDS: Seed[] = [
     quantity: 25,
     notes: "Ask at the host stand",
     lat: 32.7118, lng: -117.1603,
-    from: 21, to: 22,
+    from: 20, to: 80,
   },
   {
     restaurant_name: "Taquería Luna",
@@ -47,7 +48,7 @@ const SEEDS: Seed[] = [
     quantity: 30,
     notes: "Back door on the alley, ask for Marco",
     lat: 32.7108, lng: -117.1541,
-    from: 22, to: 23,
+    from: 50, to: 110,
   },
   {
     restaurant_name: "Bahn Thai",
@@ -55,7 +56,7 @@ const SEEDS: Seed[] = [
     quantity: 20,
     notes: null,
     lat: 32.7205, lng: -117.1583,
-    from: 19, to: 20,
+    from: 95, to: 155,
   },
   {
     restaurant_name: "Neighborhood",
@@ -63,7 +64,7 @@ const SEEDS: Seed[] = [
     quantity: 35,
     notes: "Loading zone out front until 11",
     lat: 32.7112, lng: -117.1583,
-    from: 21, to: 22,
+    from: 150, to: 210,
   },
   {
     restaurant_name: "Café Virtuoso",
@@ -71,7 +72,7 @@ const SEEDS: Seed[] = [
     quantity: 15,
     notes: null,
     lat: 32.6982, lng: -117.1437,
-    from: 18, to: 19,
+    from: 240, to: 300,
   },
 ];
 
@@ -90,7 +91,7 @@ const DELIVERED: (Seed & { zone: string; volunteer: string })[] = [
     quantity: 60,
     notes: null,
     lat: 32.7276, lng: -117.1706,
-    from: 18, to: 19,
+    from: -190, to: -130,
     zone: "northwest_downtown",
     volunteer: "Maria O.",
   },
@@ -100,7 +101,7 @@ const DELIVERED: (Seed & { zone: string; volunteer: string })[] = [
     quantity: 85,
     notes: null,
     lat: 32.7096, lng: -117.1560,
-    from: 18, to: 19,
+    from: -175, to: -115,
     zone: "east_village_south",
     volunteer: "Maria O.",
   },
@@ -110,7 +111,7 @@ const DELIVERED: (Seed & { zone: string; volunteer: string })[] = [
     quantity: 45,
     notes: null,
     lat: 32.7133, lng: -117.1560,
-    from: 19, to: 20,
+    from: -140, to: -80,
     zone: "east_village_north",
     volunteer: "Devon P.",
   },
@@ -120,7 +121,7 @@ const DELIVERED: (Seed & { zone: string; volunteer: string })[] = [
     quantity: 22,
     notes: null,
     lat: 32.7262, lng: -117.1697,
-    from: 19, to: 20,
+    from: -125, to: -65,
     zone: "outside_golden_hill",
     volunteer: "Devon P.",
   },
@@ -134,8 +135,8 @@ function base(s: Seed, id: string, stamp: string) {
     quantity: s.quantity,
     lat: s.lat,
     lng: s.lng,
-    pickup_from: todayAt(s.from),
-    pickup_to: todayAt(s.to),
+    pickup_from: minutesFromNow(s.from),
+    pickup_to: minutesFromNow(s.to),
     pickup_note: s.notes,
     drop_location_note: null,
     created_at: stamp,

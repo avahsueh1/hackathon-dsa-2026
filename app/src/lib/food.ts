@@ -46,3 +46,10 @@ export function shortHour(iso: string): string {
   const h = d.getHours();
   return `${h % 12 || 12}${h >= 12 ? "p" : "a"}`;
 }
+
+/** An ISO timestamp N minutes from now. Sample pickups use this rather than
+ *  fixed evening hours so that "Right now" and "Next hour" show something
+ *  whatever time the demo happens at. */
+export function minutesFromNow(m: number): string {
+  return new Date(Date.now() + m * 60 * 1000).toISOString();
+}

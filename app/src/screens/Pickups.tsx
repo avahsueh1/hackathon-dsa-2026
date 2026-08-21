@@ -24,7 +24,25 @@ import EmptyState from "../components/EmptyState";
  * know where it is going before they put it in the car, not after.
  */
 
-type When = "any" | "soon" | "later";
+/**
+ * When a driver can actually go.
+ *
+ *   now    the window is open — you could collect this on the way home
+ *   hour   starts within the hour, worth setting off for
+ *   2h     the rest of the near future
+ *   any    everything, including runs that are hours away
+ *
+ * "now" is the one that matters at 9pm: a run you can do this minute beats a
+ * bigger one you would have to come back for.
+ */
+type When = "now" | "hour" | "soon" | "any";
+
+const WHEN_LABEL: Record<When, string> = {
+  now: "Right now",
+  hour: "Next hour",
+  soon: "Next 2h",
+  any: "Any time",
+};
 
 interface Props {
   pickups: Pickup[];
@@ -54,13 +72,21 @@ export default function Pickups({
   const [busy, setBusy] = useState(false);
 
   const open = useMemo(() => {
-    const soonCutoff = Date.now() + 2 * 60 * 60 * 1000;
+    const now = Date.now();
+    const hour = now + 60 * 60 * 1000;
+    const twoHours = now + 2 * 60 * 60 * 1000;
+
     return pickups
       .filter((p) => p.status === "requested")
       .filter((p) => {
         if (when === "any") return true;
         const from = new Date(p.pickup_from).getTime();
-        return when === "soon" ? from <= soonCutoff : from > soonCutoff;
+        const to = new Date(p.pickup_to).getTime();
+        // "Right now" means the window is open, not that it starts soon --
+        // a pickup that opened an hour ago is still collectable.
+        if (when === "now") return from <= now && to >= now;
+        if (when === "hour") return from <= hour && to >= now;
+        return from <= twoHours && to >= now;
       })
       .sort((a, b) => a.pickup_from.localeCompare(b.pickup_from));
   }, [pickups, when]);
@@ -119,14 +145,14 @@ export default function Pickups({
           {fmt(totalMeals)} meals · {open.length} {plural(open.length, "pickup")}
         </span>
         <div className="pickrow">
-          {(["any", "soon", "later"] as When[]).map((w) => (
+          {(["now", "hour", "soon", "any"] as When[]).map((w) => (
             <button
               key={w}
               type="button"
               className={`pick tiny${w === when ? " on" : ""}`}
               onClick={() => setWhen(w)}
             >
-              {w === "any" ? "Any time" : w === "soon" ? "Next 2h" : "Later"}
+              {WHEN_LABEL[w]}
             </button>
           ))}
         </div>
@@ -154,11 +180,13 @@ export default function Pickups({
       {open.length === 0 ? (
         <div className="pickuplist">
           <EmptyState
-            headline={when === "any" ? "Nothing to collect yet." : "Nothing in that window."}
+            headline={
+              when === "any" ? "Nothing to collect yet." : `Nothing ${WHEN_LABEL[when].toLowerCase()}.`
+            }
             detail={
               when === "any"
                 ? "Restaurants post surplus at the end of service. This list fills up from about 8pm."
-                : "Try a different time — there may be runs earlier or later tonight."
+                : "There may be runs later tonight — try a wider window."
             }
             actionLabel={when === "any" ? undefined : "Show any time"}
             onAction={() => setWhen("any")}

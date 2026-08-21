@@ -31,7 +31,7 @@ import { shortHour } from "../lib/food";
  * Urgency is carried by weight instead -- a pickup in the next two hours gets
  * the solid pin, a later one a hollow ring.
  */
-function pingIcon(label: string, selected: boolean, soon: boolean): L.DivIcon {
+function pingIcon(label: string, selected: boolean, soon: boolean, withTime: boolean): L.DivIcon {
   const fill = soon ? "var(--amber-solid)" : "transparent";
   const scale = selected ? 1.12 : 1;
   return L.divIcon({
@@ -40,11 +40,15 @@ function pingIcon(label: string, selected: boolean, soon: boolean): L.DivIcon {
         display:flex;flex-direction:column;align-items:center;gap:2px;
         transform:scale(${scale});transform-origin:bottom center;
         transition:transform 160ms cubic-bezier(.2,.8,.2,1)">
-      <span style="
+      ${
+        withTime || selected
+          ? `<span style="
         padding:1px 5px;border-radius:999px;white-space:nowrap;
         background:rgba(14,20,22,.88);color:var(--amber-ink);
         font:700 10px/1.3 var(--font-ui);
-        border:1px solid ${selected ? "var(--blue)" : "transparent"}">${label}</span>
+        border:1px solid ${selected ? "var(--blue)" : "transparent"}">${label}</span>`
+          : ""
+      }
       <span style="
         display:block;width:15px;height:15px;border-radius:50% 50% 50% 0;
         transform:rotate(-45deg);background:${fill};
@@ -75,7 +79,10 @@ function Fit({ focus, points }: { focus: Pickup | null; points: [number, number]
     if (focus && focus.lat != null && focus.lng != null) {
       map.setView([focus.lat, focus.lng], Math.max(map.getZoom(), 15), { animate: true });
     } else if (points.length > 0) {
-      map.fitBounds(points, { padding: [40, 40], maxZoom: 15 });
+      // Capped one step below the label threshold on purpose: fitting to
+      // exactly 15 meant the overview always rendered every time pill and
+      // zone name, which is the pile-up this was meant to avoid.
+      map.fitBounds(points, { padding: [40, 40], maxZoom: 14 });
     } else {
       map.fitBounds(downtownBounds(), { padding: [16, 16] });
     }
@@ -123,6 +130,43 @@ function zoneLabel(n: number, name: string, ink: string, withName: boolean): L.D
     iconSize: [withName ? 96 : 20, withName ? 34 : 18],
     iconAnchor: [withName ? 48 : 10, withName ? 17 : 9],
   });
+}
+
+/**
+ * The pickup pings. Their time pill follows the same rule as the zone names:
+ * eight of them within two kilometres pile onto each other and onto the zone
+ * numbers at the default zoom. The pin always shows, the time waits for room
+ * -- except on the selected one, which you have asked about.
+ */
+function PinLayer({
+  pins,
+  selectedId,
+  onSelect,
+}: {
+  pins: Pickup[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  const zoom = useZoom();
+  const soonCutoff = Date.now() + 2 * 60 * 60 * 1000;
+
+  return (
+    <>
+      {pins.map((o) => (
+        <Marker
+          key={o.id}
+          position={[o.lat as number, o.lng as number]}
+          icon={pingIcon(
+            shortHour(o.pickup_from),
+            o.id === selectedId,
+            new Date(o.pickup_from).getTime() <= soonCutoff,
+            zoom >= 15,
+          )}
+          eventHandlers={{ click: () => onSelect(o.id) }}
+        />
+      ))}
+    </>
+  );
 }
 
 /** Zoom, as state, so the labels can decide whether they fit. */
@@ -227,7 +271,6 @@ export default function PickupMap({
   );
 
   const focus = pins.find((o) => o.id === selectedId) ?? null;
-  const soonCutoff = Date.now() + 2 * 60 * 60 * 1000;
 
   const allPoints = useMemo(
     () =>
@@ -271,18 +314,7 @@ export default function PickupMap({
           />
         ))}
 
-        {pins.map((o) => (
-          <Marker
-            key={o.id}
-            position={[o.lat as number, o.lng as number]}
-            icon={pingIcon(
-              shortHour(o.pickup_from),
-              o.id === selectedId,
-              new Date(o.pickup_from).getTime() <= soonCutoff,
-            )}
-            eventHandlers={{ click: () => onSelect(o.id) }}
-          />
-        ))}
+        <PinLayer pins={pins} selectedId={selectedId} onSelect={onSelect} />
 
         <Fit focus={focus} points={allPoints} />
       </MapContainer>
