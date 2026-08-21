@@ -608,3 +608,24 @@ button { font: inherit; color: inherit; }
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
+
+/* A field that is already answered: shown, not asked. Used for the pickup
+   address once a restaurant has registered -- hiding it entirely meant they
+   could not check where the driver was being sent. */
+.savedrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-3);
+  min-width: 0;
+  padding: var(--s-2) var(--s-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.savedrow-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.savedval {
+  font: var(--t-body);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}

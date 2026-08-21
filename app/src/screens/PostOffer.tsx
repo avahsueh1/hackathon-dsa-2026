@@ -5,6 +5,26 @@ import { FOODS, PICKUP_WINDOWS, todayAt } from "../lib/food";
 import QuantityStepper from "../components/QuantityStepper";
 import Button from "../components/Button";
 
+// Remembered for restaurants that post without registering, so the address is
+// typed once rather than every night.
+const LAST_ADDRESS_KEY = "surplus-street-last-address-v1";
+
+function rememberAddress(a: string) {
+  try {
+    localStorage.setItem(LAST_ADDRESS_KEY, a);
+  } catch {
+    /* private mode -- it just will not be remembered */
+  }
+}
+
+function lastAddress(): string {
+  try {
+    return localStorage.getItem(LAST_ADDRESS_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 /**
  * The restaurant's whole job. What, how much, and when someone can collect it.
  *
@@ -24,7 +44,11 @@ export default function PostOffer({ account, onPosted }: Props) {
   const [win, setWin] = useState(PICKUP_WINDOWS[3]);
   const [notes, setNotes] = useState("");
   const [name, setName] = useState(account?.name ?? "");
-  const [address, setAddress] = useState(account?.address ?? "");
+  const [address, setAddress] = useState(account?.address || lastAddress());
+  // Registered restaurants see their saved address rather than a blank field.
+  // Editable, because "back door tonight, the front is being resurfaced" is a
+  // real thing and the driver needs the right door.
+  const [editingAddress, setEditingAddress] = useState(false);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -45,8 +69,10 @@ export default function PostOffer({ account, onPosted }: Props) {
         pickup_from: todayAt(win.from),
         pickup_to: todayAt(win.to),
       });
+      rememberAddress(address.trim());
       setFood(null);
       setNotes("");
+      setEditingAddress(false);
       onPosted();
     } catch {
       setErr("That did not post. Check your connection and try again.");
@@ -98,28 +124,44 @@ export default function PostOffer({ account, onPosted }: Props) {
         </div>
 
         {!account && (
-          <>
-            <div className="pickgroup">
-              <label className="ss-label pick-label" htmlFor="oname">Your business</label>
-              <input
-                id="oname"
-                className="finput"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Taquería Luna"
-              />
-            </div>
-            <div className="pickgroup">
-              <label className="ss-label pick-label" htmlFor="oaddr">Pickup address</label>
-              <input
-                id="oaddr"
-                className="finput"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="123 Fifth Ave"
-              />
-            </div>
-          </>
+          <div className="pickgroup">
+            <label className="ss-label pick-label" htmlFor="oname">Your business</label>
+            <input
+              id="oname"
+              className="finput"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Taquería Luna"
+            />
+          </div>
+        )}
+
+        {account && !editingAddress ? (
+          <div className="savedrow">
+            <span className="savedrow-text">
+              <span className="ss-label pick-label">Collect from</span>
+              <span className="savedval">{address}</span>
+            </span>
+            <Button variant="quiet" size="md" onClick={() => setEditingAddress(true)}>
+              Change
+            </Button>
+          </div>
+        ) : (
+          <div className="pickgroup">
+            <label className="ss-label pick-label" htmlFor="oaddr">Pickup address</label>
+            <input
+              id="oaddr"
+              className="finput"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="123 Fifth Ave"
+            />
+            {account && (
+              <span className="pick-help">
+                Just for tonight — your saved address is {account.address}.
+              </span>
+            )}
+          </div>
         )}
 
         <div className="pickgroup">
