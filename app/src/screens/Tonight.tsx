@@ -46,7 +46,6 @@ export default function Tonight({ claims, stats, selectedId, onSelect, onClaim, 
         <span className="ss-label countrow-l">
           {t.open} open &middot; {t.covered} covered
         </span>
-        <span className="countrow-r ss-num">{fmt(t.claimed)} claimed so far</span>
       </div>
 
       <div className="cardlist">

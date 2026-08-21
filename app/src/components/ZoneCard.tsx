@@ -35,9 +35,10 @@ export default function ZoneCard({ zone, claims, stats, need = "steady", selecte
         ...style,
       }}
     >
+      {/* Pill only, as the design has it. The figure that used to sit here
+          repeated the "of ~N needed" on the progress row below it. */}
       <div className="zcard-top">
         <StatusPill status={covered ? "covered" : "open"} need={covered ? undefined : need} />
-        <span className="zcard-need">~{fmt(expected)} expected</span>
       </div>
 
       <div className="zcard-body">
