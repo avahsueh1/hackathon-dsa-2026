@@ -154,14 +154,58 @@ rect.selbox {
   padding: 14px 16px;
 }
 .panel.on { display: block; }
-.panel-head {
-  display: flex; align-items: baseline; gap: 10px;
-  flex-wrap: wrap; margin-bottom: 10px;
+
+/* The callout stays deliberately thin: one number. Everything else lives in
+   the breakdown below, which is why the map does not feel buried. */
+.callout { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.co-num { font-size: 30px; font-weight: 600; letter-spacing: -0.03em; line-height: 1; }
+.co-num small {
+  font-size: 13px; font-weight: 400; color: var(--text-secondary); margin-left: 6px;
 }
-.panel-head h2 {
-  font-size: 14px; font-weight: 600; margin: 0;
+.co-meta { font-size: 12px; color: var(--text-secondary); flex: 1; min-width: 140px; }
+
+/* ------------------------------------------------------ breakdown section */
+
+.detail {
+  display: none;
+  margin-top: 14px;
+  border-top: 2px solid var(--border-strong);
+  padding-top: 16px;
 }
-.panel-head .sub2 { font-size: 11.5px; color: var(--text-secondary); flex: 1; }
+.detail.on { display: block; }
+.detail-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.detail-head h2 { font-size: 15px; font-weight: 600; margin: 0; }
+.dsub { font-size: 11.5px; color: var(--text-secondary); }
+
+.dgrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.dcols { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 18px; }
+.dcols2 { display: grid; grid-template-columns: 1fr 1.4fr; gap: 20px; margin-top: 18px; }
+.dsec { min-width: 0; }
+.dsec h3 {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); margin: 0 0 6px; font-weight: 600;
+}
+.tallwrap {
+  max-height: 260px; overflow-y: auto;
+  border: 1px solid var(--border-subtle); border-radius: 6px; padding: 4px 8px;
+}
+table.ptab tr.hdr td {
+  font-size: 9.5px; text-transform: uppercase; letter-spacing: 0.05em;
+  color: var(--text-muted); border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 3px;
+}
+table.ptab tr.tot td {
+  border-top: 1px solid var(--border-subtle); padding-top: 4px; font-weight: 600;
+}
+.obs-dot {
+  display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+  background: var(--step-600); margin-right: 5px; vertical-align: middle;
+}
 
 .pgrid {
   display: grid;
@@ -195,6 +239,8 @@ table.ptab td.bid { font-family: var(--mono); font-size: 10.5px; word-break: bre
 @media (max-width: 768px) {
   .pgrid { grid-template-columns: repeat(2, 1fr); }
   .psplit { grid-template-columns: 1fr; gap: 14px; }
+  .dgrid { grid-template-columns: repeat(2, 1fr); }
+  .dcols, .dcols2 { grid-template-columns: 1fr; gap: 16px; }
 }
 
 /* ------------------------------------------------------------- stat row */
@@ -441,33 +487,58 @@ text.arealabel {
 </div>
 
 <div class="panel" id="panel">
-  <div class="panel-head">
-    <h2 id="panel-title">Selection</h2>
-    <span class="sub2" id="panel-sub"></span>
+  <div class="callout">
+    <div class="co-num">
+      <span id="co-value">—</span><small id="co-unit">persons</small>
+    </div>
+    <div class="co-meta" id="co-meta"></div>
+    <button class="ghost" id="co-jump">Full breakdown &darr;</button>
     <button class="ghost" id="panel-clear">Clear</button>
   </div>
-  <div class="pgrid" id="panel-grid"></div>
-  <div class="psplit">
-    <div>
-      <h3>Top blocks in selection</h3>
-      <table class="ptab"><tbody id="panel-blocks"></tbody></table>
+</div>
+
+<section class="detail" id="detail">
+  <div class="detail-head">
+    <h2>Selection breakdown</h2>
+    <span class="dsub" id="detail-sub"></span>
+  </div>
+
+  <div class="dgrid" id="d-stats"></div>
+
+  <div class="dcols">
+    <div class="dsec">
+      <h3>Composition by area</h3>
+      <table class="ptab"><tbody id="d-areas"></tbody></table>
     </div>
-    <div>
-      <h3 id="panel-right-title">Shelters in selection</h3>
-      <table class="ptab"><tbody id="panel-shelters"></tbody></table>
+    <div class="dsec">
+      <h3 id="d-shelters-title">Shelters in selection</h3>
+      <table class="ptab"><tbody id="d-shelters"></tbody></table>
     </div>
-    <div>
-      <h3 id="panel-health-title">Health facilities</h3>
-      <table class="ptab"><tbody id="panel-health"></tbody></table>
+    <div class="dsec">
+      <h3 id="d-health-title">Health &amp; access</h3>
+      <table class="ptab"><tbody id="d-health"></tbody></table>
     </div>
   </div>
-  <div style="margin-top:12px">
-    <h3 style="font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin:0 0 4px;font-weight:600">
-      Selection total over time</h3>
+
+  <div class="dsec">
+    <h3>Selection total over time</h3>
     <svg class="spark" id="panel-spark" preserveAspectRatio="none"></svg>
     <div class="sparkcap" id="panel-sparkcap"></div>
   </div>
-</div>
+
+  <div class="dcols2">
+    <div class="dsec">
+      <h3>Physically counted months</h3>
+      <table class="ptab"><tbody id="d-months"></tbody></table>
+    </div>
+    <div class="dsec">
+      <h3 id="d-blocks-title">Every block in selection</h3>
+      <div class="tallwrap">
+        <table class="ptab"><tbody id="d-blocks"></tbody></table>
+      </div>
+    </div>
+  </div>
+</section>
 
 <p class="caption">
   Block-level estimates distribute each area's published monthly total across its
@@ -1318,17 +1389,22 @@ function inRect(r, x, y) {
 
 var selIdx = null;
 var panel = document.getElementById("panel");
+var detail = document.getElementById("detail");
 
 function clearSelection() {
   selIdx = null;
   selRect = null;
   selBox.style.display = "none";
   panel.classList.remove("on");
+  detail.classList.remove("on");
   paths.forEach(function (p) { p.classList.remove("sel"); });
 }
 document.getElementById("panel-clear").addEventListener("click", function () {
   clearSelection();
   setSelectMode(false);
+});
+document.getElementById("co-jump").addEventListener("click", function () {
+  detail.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 
 function applySelection() {
@@ -1337,19 +1413,16 @@ function applySelection() {
     if (rectHitsBlock(selRect, proj[i])) selIdx.push(i);
   }
   paths.forEach(function (p, i) { p.classList.toggle("sel", selIdx.indexOf(i) >= 0); });
+  panel.classList.add("on");
   if (!selIdx.length) {
-    document.getElementById("panel-title").textContent = "Selection — no blocks";
-    document.getElementById("panel-sub").textContent =
-      "The box did not overlap any block. Drag over the grid to try again.";
-    document.getElementById("panel-grid").innerHTML = "";
-    document.getElementById("panel-blocks").innerHTML = "";
-    document.getElementById("panel-shelters").innerHTML = "";
-    document.getElementById("panel-spark").innerHTML = "";
-    document.getElementById("panel-sparkcap").textContent = "";
-    panel.classList.add("on");
+    document.getElementById("co-value").textContent = "0";
+    document.getElementById("co-unit").textContent = "blocks";
+    document.getElementById("co-meta").textContent =
+      "The box did not overlap any block — drag again over the grid.";
+    detail.classList.remove("on");
     return;
   }
-  panel.classList.add("on");
+  detail.classList.add("on");
   renderPanel();
 }
 
@@ -1362,28 +1435,35 @@ function renderPanel() {
   if (!selIdx || !selIdx.length) return;
   var row = V.values[cur], obsRow = V.is_observed[cur];
   var isMissing = missingSet[months[cur]];
+  var i, j;
 
+  // ---- basics
   var total = 0, nObs = 0, nEst = 0, nNull = 0, nZero = 0;
   var byArea = {};
   selIdx.forEach(function (i) {
-    var v = row[i];
-    var a = GEO.blocks[i].area;
-    byArea[a] = (byArea[a] || 0) + 1;
+    var v = row[i], a = GEO.blocks[i].area;
+    var A = byArea[a] || (byArea[a] = { blocks: 0, persons: 0 });
+    A.blocks++;
     if (v === null) { nNull++; return; }
-    total += v;
+    total += v; A.persons += v;
     if (v === 0) nZero++;
     if (obsRow[i]) nObs++; else nEst++;
   });
 
   var monthTotal = 0;
-  for (var j = 0; j < row.length; j++) if (row[j] !== null) monthTotal += row[j];
+  for (j = 0; j < row.length; j++) if (row[j] !== null) monthTotal += row[j];
   var pct = monthTotal > 0 ? total / monthTotal * 100 : null;
 
-  // Shelters and stations whose point falls inside the box.
-  var shIn = [], stIn = 0;
+  // ---- what falls inside the box
+  var shIn = [], hIn = [], stIn = 0;
   if (SHELTERS) {
     SHELTERS.shelters.forEach(function (s) {
       if (inRect(selRect, px(s.lonlat[0]), py(s.lonlat[1]))) shIn.push(s);
+    });
+  }
+  if (HEALTH) {
+    HEALTH.facilities.forEach(function (f) {
+      if (f.in_view && inRect(selRect, px(f.lonlat[0]), py(f.lonlat[1]))) hIn.push(f);
     });
   }
   if (TRANSIT) {
@@ -1393,121 +1473,172 @@ function renderPanel() {
   }
   var beds = shIn.reduce(function (a, s) { return a + s.beds; }, 0);
   var free = shIn.reduce(function (a, s) { return a + s.free; }, 0);
+  var gap = isMissing ? null : total - beds;
 
-  var areaNames = Object.keys(byArea).sort(function (a, b) { return byArea[b] - byArea[a]; });
+  var areaNames = Object.keys(byArea).sort(function (a, b) {
+    return byArea[b].persons - byArea[a].persons;
+  });
 
-  document.getElementById("panel-title").textContent =
-    "Selection — " + selIdx.length + " block" + (selIdx.length === 1 ? "" : "s");
-  document.getElementById("panel-sub").textContent =
-    areaNames.map(function (a) { return a + " (" + byArea[a] + ")"; }).join(" · ") +
+  // ---- the callout: one number, nothing else
+  document.getElementById("co-value").textContent = isMissing ? "—" : fmt(total);
+  document.getElementById("co-unit").textContent = isMissing ? "" : "persons";
+  document.getElementById("co-meta").textContent =
+    selIdx.length + " block" + (selIdx.length === 1 ? "" : "s") + " · " +
+    monthName(months[cur]) +
+    (isMissing ? " · no count published" : "");
+
+  document.getElementById("detail-sub").textContent =
+    areaNames.map(function (a) { return a + " (" + byArea[a].blocks + ")"; }).join(" · ") +
     " · " + monthName(months[cur]);
 
-  var cells = [];
-  cells.push('<div class="pcell"><div class="k">Persons in box</div><div class="v">' +
-    (isMissing ? "—" : fmt(total)) + ' <small>persons</small></div><div class="n">' +
-    (isMissing ? "no count published"
-      : (nObs ? nObs + " counted" : "") + (nObs && nEst ? " · " : "") +
-        (nEst ? nEst + " estimated" : "") +
-        (nNull ? " · " + nNull + " no data" : "")) + "</div></div>");
+  // ---- stat cells
+  function cell(k, v, unit, note) {
+    return '<div class="stat"><div class="k">' + k + '</div><div class="v">' + v +
+      (unit ? ' <small>' + unit + "</small>" : "") + "</div>" +
+      (note ? '<div class="n">' + note + "</div>" : "") + "</div>";
+  }
+  var per100 = (!isMissing && total > 0) ? (beds / total * 100) : null;
+  var cells = [
+    cell("Persons in box", isMissing ? "—" : fmt(total), "persons",
+      isMissing ? "no count published"
+        : [nObs ? nObs + " counted" : "", nEst ? nEst + " estimated" : "",
+           nNull ? nNull + " no data" : ""].filter(Boolean).join(" · ")),
+    cell("Share of downtown", pct === null ? "—" : pct.toFixed(1) + "%", "",
+      "of " + fmt(monthTotal) + " downtown"),
+    cell("Blocks", String(selIdx.length), "",
+      nZero ? nZero + " counted zero" : "all non-zero"),
+    cell("Shelter beds", fmt(beds), "beds",
+      shIn.length ? shIn.length + " shelter" + (shIn.length === 1 ? "" : "s") +
+        " · " + free + " free" : "none in box"),
+    cell("Beds per 100 persons", per100 === null ? "—" : per100.toFixed(0), "",
+      per100 === null ? "" : (per100 >= 100 ? "supply exceeds need" : "under-supplied")),
+    cell("Unmet in box", gap === null ? "—" : fmt(Math.max(0, gap)), "persons",
+      gap === null ? "" : (gap > 0 && SHELTERS
+        ? "$" + fmt(gap * SHELTERS.benchmarks.cost_per_bed_year_usd / 1e6, 2) + "M/yr to close"
+        : "beds exceed counted need")),
+    cell("Health facilities", String(hIn.length), "",
+      hIn.length ? hIn.map(function (f) { return f.cls; })
+        .filter(function (v, k, arr) { return arr.indexOf(v) === k; })
+        .join(", ").replace(/_/g, " ") : "none in box"),
+    cell("Trolley stops", String(stIn), "",
+      stIn ? "MTS rail within the box" : "no rail stop in box")
+  ];
+  document.getElementById("d-stats").innerHTML = cells.join("");
 
-  cells.push('<div class="pcell"><div class="k">Share of downtown</div><div class="v">' +
-    (pct === null ? "—" : pct.toFixed(1) + "%") + '</div><div class="n">' +
-    (nZero ? nZero + " block" + (nZero === 1 ? "" : "s") + " at zero" : "all non-zero") +
-    "</div></div>");
+  // ---- composition by area
+  var ah = "<tr class='hdr'><td>Area</td><td class='num'>Blocks</td>" +
+           "<td class='num'>Persons</td><td class='num'>% of sel</td></tr>";
+  ah += areaNames.map(function (a) {
+    var A = byArea[a];
+    return "<tr><td>" + a + "</td><td class='num'>" + A.blocks + "</td><td class='num'>" +
+      (isMissing ? "—" : fmt(A.persons)) + "</td><td class='num'>" +
+      (isMissing || !total ? "—" : (A.persons / total * 100).toFixed(0) + "%") +
+      "</td></tr>";
+  }).join("");
+  ah += "<tr class='tot'><td>Total</td><td class='num'>" + selIdx.length +
+        "</td><td class='num'>" + (isMissing ? "—" : fmt(total)) +
+        "</td><td class='num'>100%</td></tr>";
+  document.getElementById("d-areas").innerHTML = ah;
 
-  cells.push('<div class="pcell"><div class="k">Shelter beds in box</div><div class="v">' +
-    fmt(beds) + ' <small>beds</small></div><div class="n">' +
-    (shIn.length ? shIn.length + " shelter" + (shIn.length === 1 ? "" : "s") +
-      " · " + free + " free" : "no shelters in box") + "</div></div>");
-
-  var gap = isMissing ? null : total - beds;
-  cells.push('<div class="pcell"><div class="k">Unmet in box</div><div class="v">' +
-    (gap === null ? "—" : fmt(Math.max(0, gap))) + ' <small>persons</small></div>' +
-    '<div class="n">' +
-    (gap === null ? "" :
-      (gap > 0 && SHELTERS
-        ? "$" + fmt(gap * SHELTERS.benchmarks.cost_per_bed_year_usd / 1e6, 2) +
-          "M/yr to close"
-        : "beds exceed counted need")) +
-    (stIn ? " · " + stIn + " trolley stop" + (stIn === 1 ? "" : "s") : "") +
-    "</div></div>");
-
-  document.getElementById("panel-grid").innerHTML = cells.join("");
-
-  // Top blocks in the box
-  var ranked = selIdx.slice().sort(function (a, b) {
-    return (row[b] === null ? -1 : row[b]) - (row[a] === null ? -1 : row[a]);
-  }).slice(0, 6);
-  document.getElementById("panel-blocks").innerHTML = ranked.map(function (i) {
-    var v = row[i];
-    return "<tr><td class='bid'>" + GEO.blocks[i].id + "</td><td class='num'>" +
-      (v === null ? "no data" : (obsRow[i] ? "" : "~") + fmt(v)) + "</td></tr>";
-  }).join("") || "<tr><td>—</td></tr>";
-
-  document.getElementById("panel-right-title").textContent =
+  // ---- shelters
+  document.getElementById("d-shelters-title").textContent =
     shIn.length ? "Shelters in selection" : "Nearest shelter";
+  var sh = "";
   if (shIn.length) {
-    document.getElementById("panel-shelters").innerHTML = shIn
-      .sort(function (a, b) { return b.beds - a.beds; })
-      .map(function (s) {
-        return "<tr><td>" + s.name + "</td><td class='num'>" + s.beds + " beds · " +
-          Math.round((s.utilization || 0) * 100) + "%</td></tr>";
-      }).join("");
+    sh = "<tr class='hdr'><td>Shelter</td><td class='num'>Beds</td>" +
+         "<td class='num'>Full</td><td class='num'>FY25</td></tr>";
+    sh += shIn.sort(function (a, b) { return b.beds - a.beds; }).map(function (s) {
+      return "<tr><td>" + s.name + "</td><td class='num'>" + s.beds +
+        "</td><td class='num'>" + Math.round((s.utilization || 0) * 100) + "%</td>" +
+        "<td class='num'>" + (s.funding_fy25_usd
+          ? "$" + (s.funding_fy25_usd / 1e6).toFixed(1) + "M" : "—") + "</td></tr>";
+    }).join("");
+    sh += "<tr class='tot'><td>Total</td><td class='num'>" + beds +
+          "</td><td class='num'>" + (beds ? Math.round((beds - free) / beds * 100) : 0) +
+          "%</td><td class='num'></td></tr>";
+    sh += "<tr><td colspan='4' class='num' style='padding-top:5px'>" + free +
+          " free bed" + (free === 1 ? "" : "s") + " right now</td></tr>";
   } else if (SHELTERS) {
-    // Nothing in the box, so name the closest one to the box centre instead.
     var cxw = (selRect.x0 + selRect.x1) / 2, cyw = (selRect.y0 + selRect.y1) / 2;
     var best = null;
     SHELTERS.shelters.forEach(function (s) {
       var d = Math.hypot(px(s.lonlat[0]) - cxw, py(s.lonlat[1]) - cyw);
       if (!best || d < best.d) best = { d: d, s: s };
     });
-    document.getElementById("panel-shelters").innerHTML = best
-      ? "<tr><td>" + best.s.name + "</td><td class='num'>" + best.s.beds +
-        " beds · " + best.s.free + " free</td></tr>"
-      : "<tr><td>—</td></tr>";
-  } else {
-    document.getElementById("panel-shelters").innerHTML = "<tr><td>—</td></tr>";
+    sh = best ? "<tr><td>" + best.s.name + "</td><td class='num'>" + best.s.beds +
+      " beds · " + best.s.free + " free</td></tr>" +
+      "<tr><td colspan='2' style='color:var(--text-muted);padding-top:4px'>" +
+      "No shelter inside this box.</td></tr>" : "<tr><td>—</td></tr>";
   }
+  document.getElementById("d-shelters").innerHTML = sh || "<tr><td>—</td></tr>";
 
-  // Health facilities inside the box, then the nearest hospital regardless of
-  // the box -- downtown has none, and that gap is the point worth surfacing.
-  var hEl = document.getElementById("panel-health");
+  // ---- health and access
+  var hh = "";
   if (HEALTH) {
-    var hIn = HEALTH.facilities.filter(function (f) {
-      return f.in_view && inRect(selRect, px(f.lonlat[0]), py(f.lonlat[1]));
-    });
-    document.getElementById("panel-health-title").textContent =
-      "Health facilities" + (hIn.length ? " in selection" : "");
-    var html = hIn.sort(function (a, b) { return a.cls.localeCompare(b.cls); })
-      .slice(0, 5)
-      .map(function (f) {
-        return "<tr><td>" + f.name + "</td><td class='num'>" +
-          f.cls.replace("_", " ") + "</td></tr>";
-      }).join("");
-    if (hIn.length > 5) {
-      html += "<tr><td colspan='2' class='num'>+" + (hIn.length - 5) + " more</td></tr>";
-    }
-    if (!hIn.length) {
-      html = "<tr><td colspan='2'>None in box</td></tr>";
+    if (hIn.length) {
+      hh += "<tr class='hdr'><td>Facility</td><td class='num'>Type</td></tr>";
+      hh += hIn.sort(function (a, b) { return a.cls.localeCompare(b.cls); })
+        .map(function (f) {
+          return "<tr><td>" + f.name + "</td><td class='num'>" +
+            f.cls.replace(/_/g, " ") + "</td></tr>";
+        }).join("");
+    } else {
+      hh += "<tr><td colspan='2'>No health facility in box</td></tr>";
     }
     // Straight-line nearest can be across the bay, so name the nearest
     // reachable hospital and the nearest trauma centre instead.
     var T = HEALTH.totals;
     if (T.nearest_mainland_hospital) {
-      html += "<tr><td style='padding-top:6px;color:var(--text-muted)'>" +
-        "Nearest hospital<br>" + T.nearest_mainland_hospital + "</td>" +
-        "<td class='num' style='padding-top:6px'>" +
+      hh += "<tr><td style='padding-top:7px;color:var(--text-muted)'>Nearest hospital<br>" +
+        T.nearest_mainland_hospital + "</td><td class='num' style='padding-top:7px'>" +
         T.nearest_mainland_hospital_km.toFixed(1) + " km</td></tr>";
     }
     if (T.nearest_trauma) {
-      html += "<tr><td style='color:var(--text-muted)'>Nearest trauma (" +
+      hh += "<tr><td style='color:var(--text-muted)'>Nearest trauma (" +
         T.nearest_trauma_level + ")<br>" + T.nearest_trauma + "</td>" +
         "<td class='num'>" + T.nearest_trauma_km.toFixed(1) + " km</td></tr>";
     }
-    hEl.innerHTML = html;
-  } else {
-    hEl.innerHTML = "<tr><td>—</td></tr>";
   }
+  document.getElementById("d-health").innerHTML = hh || "<tr><td>—</td></tr>";
+
+  // ---- counted months only: these are observation, not model output
+  var mh = "<tr class='hdr'><td>Month</td><td class='num'>Persons</td>" +
+           "<td class='num'>% downtown</td></tr>";
+  mh += V.observed_months.map(function (m) {
+    var mi = month_index[m];
+    if (mi === undefined) return "";
+    var t = 0, dt = 0, any = false;
+    for (var n = 0; n < selIdx.length; n++) {
+      var v = V.values[mi][selIdx[n]];
+      if (v !== null) { t += v; any = true; }
+    }
+    for (var q = 0; q < V.values[mi].length; q++) {
+      if (V.values[mi][q] !== null) dt += V.values[mi][q];
+    }
+    if (!any) return "";
+    return "<tr" + (mi === cur ? " class='tot'" : "") + "><td><span class='obs-dot'></span>" +
+      monthName(m) + "</td><td class='num'>" + fmt(t) + "</td><td class='num'>" +
+      (dt ? (t / dt * 100).toFixed(1) + "%" : "—") + "</td></tr>";
+  }).join("");
+  document.getElementById("d-months").innerHTML = mh;
+
+  // ---- every selected block
+  document.getElementById("d-blocks-title").textContent =
+    "Every block in selection (" + selIdx.length + ")";
+  var ranked = selIdx.slice().sort(function (a, b) {
+    return (row[b] === null ? -1 : row[b]) - (row[a] === null ? -1 : row[a]);
+  });
+  var bh = "<tr class='hdr'><td>Block</td><td class='num'>Persons</td>" +
+           "<td class='num'>% area</td><td class='num'>Confidence</td></tr>";
+  bh += ranked.map(function (i) {
+    var v = row[i];
+    return "<tr><td class='bid'>" + (obsRow[i] ? "<span class='obs-dot'></span>" : "") +
+      GEO.blocks[i].id + "</td><td class='num'>" +
+      (v === null ? "no data" : (obsRow[i] ? "" : "~") + fmt(v)) + "</td>" +
+      "<td class='num'>" + (V.share_within_area[i] * 100).toFixed(1) + "%</td>" +
+      "<td class='num'>" + confidenceOf(i) + " (" + V.n_observations[i] + ")</td></tr>";
+  }).join("");
+  document.getElementById("d-blocks").innerHTML = bh;
 
   renderSpark();
 }

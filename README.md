@@ -143,7 +143,7 @@ you edit and the artifact you ship.
 | Time slider | 108 months. Play at ~4/sec, ←/→ steps, shift+←/→ jumps a year, space plays. Observed months get tall ticks, gap months orange. |
 | Blocks / Heat | Choropleth on fixed breaks, or a blurred kernel-density layer. Both share the same breaks, so switching never changes what a colour means. |
 | Trolley / Shelters / Health | MTS rail lines and stations; HIC shelters as circles sized by bed count, red at ≥95% full; HCAI health facilities as squares coloured by class. Shape carries the category, so the two never rely on colour alone. Hover any of them for detail. |
-| **Select area** | Drag a box over the map for aggregate stats on just those blocks — persons, share of downtown, beds inside, unmet gap and its annual cost, plus health facilities inside it and a 108-month sparkline of the selection. Follows the slider and stays pinned through zoom/pan. |
+| **Select area** | Drag a box over the map. The callout under the map stays to a single number — persons in the box — and a full **Selection breakdown** sits below it: 8 stat cells, composition by area, every shelter and health facility inside, all 12 physically counted months, a 108-month sparkline, and a scrollable row for every selected block. Follows the slider and stays pinned through zoom/pan. |
 | Zoom / pan | Scroll and drag. Street labels counter-scale; minor streets appear past ~2.2×. |
 
 Box-select includes a block when the box **overlaps its polygon**, not merely
